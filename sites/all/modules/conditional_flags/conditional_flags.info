@@ -1,0 +1,14 @@
+name = Conditional Flags
+description = Provide conditional reactions between flags.
+package = Flags
+configure = admin/structure/flags/conditionals
+core = 7.x
+version = 7.x-1.x-dev
+
+dependencies[] = flag
+; Information added by drupal.org packaging script on 2012-09-03
+version = "7.x-1.0-beta2"
+core = "7.x"
+project = "conditional_flags"
+datestamp = "1346689929"
+

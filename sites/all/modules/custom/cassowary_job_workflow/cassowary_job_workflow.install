@@ -1,0 +1,19 @@
+<?php
+
+/**
+ * Implements hook_install().
+ *
+ * @ingroup cassowary_job_workflow
+ */
+function cassowary_job_workflow_install() {
+  
+}
+
+/**
+ * Implements hook_uninstall().
+ *
+ * @ingroup cassowary_job_workflow
+ */
+function cassowary_job_workflow_uninstall() {
+  
+}

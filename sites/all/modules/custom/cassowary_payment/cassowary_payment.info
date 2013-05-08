@@ -1,0 +1,5 @@
+name = Cassowary payment
+description = Paypal adaptive payment for Cassowary
+package = Cassowary
+core = 7.x
+files[] = cassowary_payment.module

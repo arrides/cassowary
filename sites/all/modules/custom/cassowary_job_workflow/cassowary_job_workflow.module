@@ -1,0 +1,638 @@
+<?php
+/**
+ * @file
+ * TODO: Enter file description here.
+ */
+
+/**
+ * Implements hook_help().
+ */
+function cassowary_job_workflow_help($path, $arg) {
+  switch ($path) {
+    case 'admin/help#cassowary_job_workflow':
+      return t("TODO: Create admin help text.");
+      // OPTIONAL: Add additional cases for other paths that should display help text.
+  }
+}
+
+/**
+ * Implements hook_menu().
+ */
+function cassowary_job_workflow_menu() {
+
+  /*$items['hire/%user'] = array(
+      'title'            => 'Hire a writer',
+      'page callback'    => 'cassowary_job_workflow_hire',
+      'page arguments'   => array(1),
+      'access callback'  => 'privatemsg_user_access',
+      'access arguments' => array('write privatemsg'),
+      'type'             => MENU_CALLBACK,
+  );*/
+  $items['admin/config/cassowary'] = array(
+      'title' => 'Cassowary',
+      'description' => 'Cassowary.',
+      'page callback' => 'system_admin_menu_block_page',
+      'access arguments' => array('access administration pages'),
+      'file' => 'system.admin.inc',
+      'file path' => drupal_get_path('module', 'system'),
+  );
+  $items['admin/config/cassowary/workflow'] = array(
+      'title' => 'Workflow',
+      'description' => 'Job workflow settings',
+      'page callback' => 'drupal_get_form',
+      'page arguments' => array('cassowary_job_workflow_settings'),
+      'access arguments' => array('administer site configuration'),
+      'type'             => MENU_NORMAL_ITEM,
+  );
+  // Module settings.
+  $items['admin/config/cassowary/workflow/job_settings'] = array(
+      'title' => 'Job workflow settings',
+      'page callback' => 'drupal_get_form',
+      'page arguments' => array('cassowary_job_workflow_settings'),
+      'access arguments' => array('administer site configuration'),
+      'type' => MENU_DEFAULT_LOCAL_TASK,
+  );
+
+  // cur user - employer, arg(1) - writer, arg(2) - job node
+  $items['hire/%user/%node'] = array(
+      'title callback'   => 'cassowary_job_workflow_hire_title',
+      'title arguments'  => array(1, 2),
+      'page callback'    => 'cassowary_job_workflow_hire',
+      'page arguments'   => array(1, 2),
+      'access callback'  => 'privatemsg_user_access',
+      'access arguments' => array('write privatemsg'),
+      'type'             => MENU_CALLBACK,
+  );
+  // cur user - employer, arg(1) - writer, arg(2) - job node
+  $items['hire/%user/%node/%ctools_js'] = array(
+      'title callback'   => 'cassowary_job_workflow_hire_title',
+      'title arguments'  => array(1, 2),
+      'page callback'    => 'cassowary_job_workflow_hire_modal',
+      'page arguments'   => array(1, 2, 3),
+      'delivery callback' => 'ajax_deliver',
+      'theme callback' => 'ajax_base_page_theme',
+      'access callback'  => 'privatemsg_user_access',
+      'access arguments' => array('write privatemsg'),
+      'type'             => MENU_CALLBACK,
+  );
+  // cur user - writer, arg(1) - job node
+  $items['apply/%node/%ctools_js'] = array(
+      'title callback'   => 'cassowary_job_workflow_apply_title',
+      'title arguments'  => array(1),
+      'page callback'    => 'cassowary_job_workflow_apply_modal',
+      'page arguments'   => array(1, 2),
+      'delivery callback' => 'ajax_deliver',
+      'theme callback' => 'ajax_base_page_theme',
+      'access callback'  => 'cassowary_job_workflow_apply_access',
+      'access arguments' => array(1),
+      'type'             => MENU_CALLBACK,
+  );
+  // cur user - writer, arg(1) - job node
+  $items['apply/%node'] = array(
+      'title callback'   => 'cassowary_job_workflow_apply_title',
+      'title arguments'  => array(1),
+      'page callback'    => 'cassowary_job_workflow_apply_modal',
+      'page arguments'   => array(1),
+      'access callback'  => 'cassowary_job_workflow_apply_access',
+      'access arguments' => array(1),
+      'type'             => MENU_CALLBACK,
+  );
+  $items['applied/%node'] = array(
+      'title'   => 'Thank You for applying!',
+      'page callback'    => 'cassowary_job_workflow_applied',
+      'page arguments'   => array(1),
+      'access callback'  => 'cassowary_job_workflow_applied_access',
+      'access arguments' => array(1),
+      'type'             => MENU_CALLBACK,
+  );
+
+
+  return $items;
+}
+
+/**
+ * Implements hook_theme().
+ */
+
+function cassowary_job_workflow_theme($existing, $type, $theme, $path) {
+  return array(
+    'cassowary_job_workflow_applied' => array(
+      'variables' => array('vars'=>NULL,),
+      'template' => 'cassowary-job-workflow-applied',
+      'path' => $path,
+    ),
+  );
+}
+
+/*function cassowary_job_workflow_menu_alter(&$items) {
+  // Example - disable the page at node/add
+  //$items['messages/view/%privatemsg_thread']
+  dsm($items['messages/view/%privatemsg_thread']);
+}*/
+
+/**
+ * Form builder function for module settings.
+ */
+function cassowary_job_workflow_settings() {
+
+  $roles = user_roles();
+
+  $form['cassowary_job_workflow_employer'] = array(
+      '#type' => 'checkboxes',
+      '#options' => $roles,
+      '#title' => t('Roles that can hire for a job'),
+      '#default_value' => variable_get('cassowary_job_workflow_employer', NULL),
+  );
+
+  $form['cassowary_job_workflow_worker'] = array(
+      '#type' => 'checkboxes',
+      '#options' => $roles,
+      '#title' => t('Roles that can be hired for a job'),
+      '#default_value' => variable_get('cassowary_job_workflow_worker', NULL),
+  );
+
+  $types = node_type_get_types();
+  foreach ($types as $type) {
+    $options[$type->type] = t($type->name);
+  }
+
+  $form['cassowary_job_workflow_node'] = array(
+      '#type' => 'checkboxes',
+      '#title' => t('Content types that can be a job'),
+      '#options' => $options,
+      '#default_value' => variable_get('cassowary_job_workflow_node', array()),
+  );
+
+  return system_settings_form($form);
+}
+
+/**
+ * Hire job title callback
+ */
+function cassowary_job_workflow_hire_title($writer, $job = 0) {
+  if (is_object($job)) {
+    $title = t('Hire a writer to the job "!job"', array('!job' => $job->title));
+  }
+  else {
+    $title = t('Hire a writer to the job');
+  }
+
+  return $title;
+}
+
+/**
+ * Hire job callback
+ */
+function cassowary_job_workflow_hire($writer, $job = 0) {
+  global $user;
+  $content = '';
+  // example code | see common.inc drupal_deliver_html_page() str 2498
+  /*if (empty($return) || $return == MENU_NOT_FOUND || $return == MENU_ACCESS_DENIED) {
+    // Standard 404 handler.
+    drupal_set_title(t('Page not found'));
+    $return = t('The requested page "@path" could not be found.', array('@path' => request_uri()));
+  }*/
+
+  // check existing of conversation
+  // only one conversation is possible
+
+  if (is_object($job)) {
+    $query = new EntityFieldQuery();
+    $query->entityCondition('entity_type', 'privatemsg_message')
+    //->propertyCondition('author', $user->uid)
+    ->fieldCondition('field_job', 'value', $job->nid, '=')
+    ->fieldCondition('field_recipient', 'value', $writer->uid, '=')
+    ->range(0, 1)
+    ->addMetaData('account', user_load(1)); // Run the query as user 1.
+    $result = $query->execute();
+    if (isset($result['privatemsg_message'])) {
+      $value = array_shift(array_keys($result['privatemsg_message']));
+      if (is_numeric($value)) {
+        drupal_goto('messages/view/' . $value);
+      }
+    }
+  }
+
+
+
+  $employer_roles = variable_get('cassowary_job_workflow_employer', NULL);
+
+  //$subject =  t('@user wants to hire @writer to the job "@job"', array('@user' => format_string($user->name), '@writer' => format_string($writer->name), '@job' => format_string($job->title)));
+  $subject = $job->title;
+  $body =  t('!user wants to to hire !writer to the job "!job"', array('!user' => l($user->name, 'user/' . $user->uid), '!writer' => l($writer->name, 'user/' . $writer->uid), '!job' => l($job->title, 'node/' . $job->nid)));
+
+  module_load_include('inc', 'privatemsg', 'privatemsg.pages');
+
+  $form_id = 'privatemsg_new';
+  $form_state = array();
+
+  $form_state['build_info']['args']  = $form_state2['build_info']['args'] = array($writer->uid, $subject);
+
+  $send_form = drupal_build_form('privatemsg_new', $form_state2);
+
+  $form_state += form_state_defaults();
+
+  $form = drupal_retrieve_form($form_id, $form_state);
+
+  drupal_prepare_form($form_id, $form, $form_state);
+
+
+
+  $_SESSION['alter_pm_form']['field_job'] = $job->nid;
+  $_SESSION['alter_pm_form']['field_recipient'] = $writer->uid;
+
+
+  //$form['recipient']['#disabled'] = TRUE;
+  //$form['recipient']['#autocomplete_path'] =  FALSE;
+  //unset($form['recipient']['#description']);
+  //$form['subject']['#disabled'] = TRUE;
+
+  drupal_process_form($form_id, $form, $form_state);
+
+  //dsm(($form));
+  //dsm(array_keys($send_form));
+
+  //$form = drupal_render($send_form);
+  $form = drupal_render($form);
+
+  $title = cassowary_job_workflow_hire_title($writer, $job);
+  drupal_set_title($title);
+
+
+  $content .= $form;
+
+  return $content;
+}
+
+/**
+ * Hire job callback
+ */
+function cassowary_job_workflow_hire_modal($writer, $job = 0, $js) {
+  //dpm($js);
+  if (!$js) {
+    // If user has no js support redirect him to general form
+    drupal_goto('hire/' . $writer->uid . '/' . $job->nid);
+  }
+  global $user;
+
+
+  // check existing of conversation
+  // only one conversation is possible
+
+  if (is_object($job)) {
+    $query = new EntityFieldQuery();
+    $query->entityCondition('entity_type', 'privatemsg_message')
+    //->propertyCondition('author', $user->uid)
+    ->fieldCondition('field_job', 'value', $job->nid, '=')
+    ->fieldCondition('field_recipient', 'value', $writer->uid, '=')
+    ->range(0, 1)
+    ->addMetaData('account', user_load(1)); // Run the query as user 1.
+    $result = $query->execute();
+    if (isset($result['privatemsg_message'])) {
+      $value = array_shift(array_keys($result['privatemsg_message']));
+      if (is_numeric($value)) {
+        drupal_goto('messages/view/' . $value);
+      }
+    }
+  }
+
+
+
+  $employer_roles = variable_get('cassowary_job_workflow_employer', NULL);
+
+  //$subject =  t('@user wants to hire @writer to the job "@job"', array('@user' => format_string($user->name), '@writer' => format_string($writer->name), '@job' => format_string($job->title)));
+  $subject = $job->title;
+  $body =  t('!user wants to to hire !writer to the job "!job"', array('!user' => l($user->name, 'user/' . $user->uid), '!writer' => l($writer->name, 'user/' . $writer->uid), '!job' => l($job->title, 'node/' . $job->nid)));
+
+  // Include ctools modal plugin.
+  ctools_include('modal');
+
+
+
+  // Array with ajax response.
+  $commands = array();
+
+
+  module_load_include('inc', 'privatemsg', 'privatemsg.pages');
+
+  $form_id = 'privatemsg_new';
+
+  $form_state = array('ajax' => TRUE);
+
+  $form_state['build_info']['args'] = array($writer->uid, $subject);
+
+  $commands = ctools_modal_form_wrapper('privatemsg_new', $form_state);
+
+  $_SESSION['alter_pm_form']['field_job'] = $job->nid;
+  $_SESSION['alter_pm_form']['field_recipient'] = $writer->uid;
+
+  // If form was submited.
+  if (!empty($form_state['executed'])) {
+    $commands = _cassowary_job_workflow_execute_form('privatemsg_new', $form_state);
+  }
+
+  return array('#type' => 'ajax', '#commands' => $commands);
+
+}
+
+/**
+ * hook_form_FORM_ID_alter()
+ */
+
+function cassowary_job_workflow_form_privatemsg_new_alter(&$form, &$form_state, $form_id) {
+  if (isset($_SESSION['alter_pm_form'])) {
+    $form['field_recipient']['und'][0]['value']['#default_value'] = $_SESSION['alter_pm_form']['field_recipient'];
+    $form['field_job']['und'][0]['value']['#default_value'] = $_SESSION['alter_pm_form']['field_job'];
+    unset($_SESSION['alter_pm_form']);
+    $form['recipient']['#disabled'] = TRUE;
+    $form['recipient']['#autocomplete_path'] =  FALSE;
+    unset($form['recipient']['#description']);
+    $form['subject']['#disabled'] = TRUE;
+    $form['#validate'][] = 'cassowary_job_workflow_privatemsg_new_validate';
+    drupal_set_title('Message employer to apply for this job');
+    //$form['actions']['cancel']['#markup'] = '<a class="close" href="#">'. t('Cancel') . '</a>';
+  }
+
+  if (arg(0) == 'messages' && arg(1) == 'view') {
+    $thread = arg(2);
+    if (is_numeric($thread)) {
+      global $user;
+      $thread_entity = privatemsg_thread_load($thread, user_load(1));
+      $first_message = array_shift($thread_entity['messages']);
+      if (!empty($first_message->field_job['und'][0]['value'])
+          && !empty($first_message->field_recipient['und'][0]['value'])) {
+        $worker = user_load($first_message->field_recipient['und'][0]['value']);
+        $job = node_load($first_message->field_job['und'][0]['value']);
+        if ($job->workflow == 3 && cassowary_job_workflow_hire_access($worker, $job)) {
+          $form['body']['#prefix'] = l(t('Hire'), 'payment/job/'. $first_message->field_recipient['und'][0]['value'] .'/'. $first_message->field_job['und'][0]['value']);
+        }
+      }
+    }
+  }
+
+  //dpm($form);
+}
+
+/**
+ * Additional validate callback for the privatemsg_new form.
+ */
+function cassowary_job_workflow_privatemsg_new_validate($form, &$form_state) {
+  if (isset($form_state['values']['field_recipient']['und'][0])
+      && $form_state['values']['field_recipient']['und'][0] != 0
+      && isset($form_state['values']['field_job']['und'][0]['value'])
+      && $form_state['values']['field_job']['und'][0]['value'] != 0) {
+      flag('flag', 'sigh_up_to_the_job', $form_state['values']['field_job']['und'][0]['value'], user_load($form_state['values']['field_recipient']['und'][0]));
+      $job = node_load($form_state['values']['field_job']['und'][0]['value']);
+      $writer = user_load($form_state['values']['field_recipient']['und'][0]);
+      $author = user_load($job->uid);
+      rules_invoke_component('rules_send_emails_after_applying_for_job', $author, $writer, $job);
+
+    //dpm($form_state);
+  }
+
+}
+
+/**
+ * access to hire for a job
+ */
+
+function cassowary_job_workflow_hire_access($worker, $job = 0) {
+  global $user; // currern user must be an employer
+  if (is_object($user) && is_object($worker)) {
+    if(privatemsg_user_access('write privatemsg', $user)){
+      $employer_roles = variable_get('cassowary_job_workflow_employer', array());
+      $job_types = variable_get('cassowary_job_workflow_node', array());
+      if ((!is_object($job) && $job == 0) || (is_object($job) && in_array($job->type, $job_types, TRUE))) {
+        $employer_array = (array_intersect($employer_roles, array_keys($user->roles)));
+        if (!empty($employer_array)) {
+          $worker_roles = variable_get('cassowary_job_workflow_worker', array());
+          $worker_array = (array_intersect($worker_roles, array_keys($worker->roles)));
+          if (!empty($worker_array)) {
+            return TRUE;
+          }
+        }
+      }
+    }
+
+  }
+  return FALSE;
+}
+
+/**
+ * access to apply for a job
+ */
+
+function cassowary_job_workflow_apply_access($job) {
+  global $user; // currern user must be a worker
+  if (is_object($user)) {
+    if(privatemsg_user_access('write privatemsg', $user)){
+      $job_types = variable_get('cassowary_job_workflow_node', array());
+      if ((is_object($job) && in_array($job->type, $job_types, TRUE))) {
+
+          $worker_roles = variable_get('cassowary_job_workflow_worker', array());
+          $worker_array = (array_intersect($worker_roles, array_keys($user->roles)));
+          if (!empty($worker_array)) {
+            return TRUE;
+          }
+      }
+    }
+  }
+  return FALSE;
+}
+
+/**
+ * access to applied page for a job
+ */
+
+function cassowary_job_workflow_applied_access($job) {
+  global $user;
+  if(cassowary_job_workflow_apply_access($job)) {
+    $flag = flag_get_user_flags('node', $job->nid, $user->uid);
+    if (!empty($flag)) {
+      return TRUE;
+    }
+  }
+  return FALSE;
+}
+
+/**
+ * Executes form.
+ */
+function _cassowary_job_workflow_execute_form($form_type, $form_state) {
+  // Include additinal ajax commands.
+  ctools_include('ajax');
+  ctools_include('modal');
+
+  //$commands[] = ctools_ajax_command_reload();
+  $commands[] = ctools_ajax_command_redirect('applied/' . $form_state['values']['field_job']['und'][0]['value']);
+  return $commands;
+}
+
+/**
+ * Add css and javascript for modal dialog.
+ */
+function _cassowary_job_workflow_include_modal() {
+
+  static $added = FALSE;
+  if ($added == FALSE) {
+
+    // Do not add css and scripts again.
+    $added = TRUE;
+
+    // Include the CTools tools that we need.
+    ctools_include('modal');
+    ctools_include('ajax');
+    ctools_modal_add_js();
+
+    // Create our own javascript that will be used to theme a modal.
+    $cassowary_job_workflow_style = array(
+        'ctools-cassowary_job_workflow-style' => array(
+            'modalSize' => array(
+                'type' => 'fixed',
+                'width' => 550,
+                'height' => 140,
+                'contentRight' => 30,
+                'contentBottom' => 0,
+            ),
+            'modalOptions' => array(
+                'opacity' => (float) 0.8,
+                'background-color' => '#000000',
+            ),
+            'closeText' => '',
+            'throbber' => theme('image', array('path' => ctools_image_path('ajax-loader.gif', 'cassowary_job_workflow'))),
+            'animation' => 'fadeIn',
+            'animationSpeed' => 'fast',
+        	'modalTheme' => 'CToolsSampleModal',
+        ),
+    );
+    drupal_add_js($cassowary_job_workflow_style, 'setting');
+
+    // Add module css and js.
+    ctools_add_css('cassowary-job-workflow', 'cassowary_job_workflow');
+    ctools_add_js('cassowary-job-workflow', 'cassowary_job_workflow');
+  }
+}
+
+/**
+ * Apply job callback
+ */
+function cassowary_job_workflow_apply_modal($job, $js = FALSE) {
+
+  global $user;
+
+  $writer = $user;
+
+  // check the job is a job type
+  $job_types = variable_get('cassowary_job_workflow_node', array());
+  if (!(is_object($job) && in_array($job->type, $job_types, TRUE))) {
+    // Standard 404 handler.
+    drupal_set_title(t('Page not found'));
+    return t('The requested page "@path" could not be found.', array('@path' => request_uri()));
+  }
+
+  $employer = user_load($job->uid);
+
+  // check existing of conversation
+  // only one conversation is possible
+  $query = new EntityFieldQuery();
+  $query->entityCondition('entity_type', 'privatemsg_message')
+  //->propertyCondition('author', $user->uid)
+  ->fieldCondition('field_job', 'value', $job->nid, '=')
+  ->fieldCondition('field_recipient', 'value', $writer->uid, '=')
+  ->range(0, 1)
+  ->addMetaData('account', user_load(1)); // Run the query as user 1.
+  $result = $query->execute();
+  if (isset($result['privatemsg_message'])) {
+    $value = array_shift(array_keys($result['privatemsg_message']));
+    if (is_numeric($value)) {
+      drupal_goto('messages/view/' . $value);
+    }
+  }
+
+
+  $employer_roles = variable_get('cassowary_job_workflow_employer', NULL);
+
+  //$subject =  t('@user wants to hire @writer to the job "@job"', array('@user' => format_string($employer->name), '@writer' => format_string($writer->name), '@job' => format_string($job->title)));
+  $subject = $job->title;
+  $body =  t('!user wants to to hire !writer to the job "!job"', array('!user' => l($employer->name, 'user/' . $employer->uid), '!writer' => l($writer->name, 'user/' . $writer->uid), '!job' => l($job->title, 'node/' . $job->nid)));
+
+  $_SESSION['alter_pm_form']['field_job'] = $job->nid;
+  $_SESSION['alter_pm_form']['field_recipient'] = $writer->uid;
+
+  module_load_include('inc', 'privatemsg', 'privatemsg.pages');
+
+  $form_id = 'privatemsg_new';
+
+  $form_state = array('ajax' => TRUE);
+
+  $form_state['build_info']['args'] = array($employer->uid, $subject);
+
+  if (!$js) {
+    // If user has no js support load general page
+    $form_state = array('ajax' => FALSE);
+    $form = drupal_build_form('privatemsg_new', $form_state);
+    $form = drupal_render($form);
+    return $form;
+  }
+
+  // Include ctools modal plugin.
+  ctools_include('modal');
+  // Array with ajax response.
+  $commands = array();
+  $commands = ctools_modal_form_wrapper('privatemsg_new', $form_state);
+  // If form was submited.
+  if (!empty($form_state['executed'])) {
+    $commands = _cassowary_job_workflow_execute_form('privatemsg_new', $form_state);
+  }
+  return array('#type' => 'ajax', '#commands' => $commands);
+
+}
+
+
+/*
+ * Preprocess theme variables for templates.
+ */
+function cassowary_job_workflow_preprocess(&$variables, $hook) {
+  //dsm($variables);
+  //dsm($hook);  	
+  if($hook == "page" && arg(0) == "applied"){
+  	/*$variables['page']['#show_messages'] = FALSE;
+  	dsm($variables);
+  	dsm($hook);
+  	drupal_set_message();*/
+  	unset($_SESSION['messages']);
+  	
+  }
+}
+
+/**
+ * Apply job title callback
+ */
+function cassowary_job_workflow_apply_title($job = 0) {
+  if (is_object($job)) {
+    $title = t('Hire a writer to the job "!job"', array('!job' => $job->title));
+  }
+  else {
+    $title = t('Hire a writer to the job');
+  }
+
+  return $title;
+}
+
+/**
+ * Applied for job callback
+ */
+function cassowary_job_workflow_applied ($job) {
+
+  $content = '';
+
+  $messages_panel = l(t('messages panel'), 'messages_private');
+
+  $vars['strings'][] = t("You'll be notified when the employer responds. Keep track of responses to job inquiries in your dashboard's !messages_panel.", array('!messages_panel' => $messages_panel));
+  $vars['strings'][] = t('Good luck, and thank you for using Cassowary!');
+  $vars['strings'][] = l(t('< Back to Job Detail'), 'node/' . $job->nid);
+
+  $content = theme('cassowary_job_workflow_applied', array('vars' => $vars));
+
+  return $content;
+}

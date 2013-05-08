@@ -1,0 +1,57 @@
+<?php
+ /**
+ * @file
+ * Install, update and uninstall functions for the hashtags module.
+ */
+
+function hashtags_enable() {
+  $vocabulary = taxonomy_vocabulary_load(variable_get('hashtags_vocabulary', 0));
+  if (!$vocabulary) {
+    $edit = array(
+      'name' => t('Hashtags'),
+      'machine_name' => 'hashtags',
+      'description' => t('Hashtag vocabulary'),
+      'hierarchy' => 1,
+      'module' => 'hashtags',
+      'weight' => -11,
+    );
+    $vocabulary = (object) $edit;
+    taxonomy_vocabulary_save($vocabulary);
+    variable_set('hashtags_vocabulary', $vocabulary->vid);
+  }  
+  $field_name = 'field_' . $vocabulary->machine_name;
+  if (!field_info_field($field_name)) {
+    $field = array(
+      'field_name' => $field_name, 
+      'type' => 'taxonomy_term_reference',
+      // Set cardinality to unlimited for tagging.
+      'cardinality' => FIELD_CARDINALITY_UNLIMITED,
+      'settings' => array(
+        'allowed_values' => array(
+          array(
+            'vocabulary' => $vocabulary->machine_name,
+            'parent' => 0,
+          ),
+        ),
+      ),
+    );
+    field_create_field($field);    
+    variable_set('hashtags_terms_field', $field_name);    
+  }         
+}
+
+/**
+*  hook_uninstall().
+*/
+function hashtags_uninstall() {
+  drupal_load('module', 'taxonomy');
+  $vid = variable_get('hashtags_vocabulary', '');
+  $field_name = variable_get('hashtags_terms_field', '');
+  field_delete_field($field_name);
+  taxonomy_vocabulary_delete($vid);
+  // Purge field data now to allow taxonomy module to be uninstalled
+  // if this is the only field remaining.
+  field_purge_batch(11);
+  variable_del('hashtags_vocabulary');
+  variable_del('hashtags_terms_field'); 
+}

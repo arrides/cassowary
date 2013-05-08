@@ -1,0 +1,511 @@
+<?php
+/**
+ * @file
+ * TODO: Enter file description here.
+ */
+
+/**
+ * Implements hook_help().
+ */
+function geonames_usa_help($path, $arg) {
+  switch ($path) {
+    case 'admin/help#geonames_usa':
+      return t("TODO: Create admin help text.");
+    // OPTIONAL: Add additional cases for other paths that should display help text.
+  }
+}
+
+/**
+ * Implements hook_field_info().
+ */
+function geonames_usa_field_info() {
+  $field_Info = array(
+      'geonames_usa_location' => array(
+          'label' => t('Geonames location of the USA'),
+          'description' => t('Geonames location - state and city'),
+          'settings' => array(
+              'default_state' => 'Any',
+              'required_state' => 0,
+              'required_city' => 0,
+          ),
+          'instance_settings' => array(
+              'default_state' => 'Any',
+              'required_state' => 0,
+              'required_city' => 0,
+          ),
+          'default_widget' => 'cc_usa_location',
+          'default_formatter' => 'geonames_usa_location_formatter',
+      ),
+      'geonames_usa_location_short' => array(
+          'label' => t('Geolocation of the USA'),
+          'description' => t('Geonames location - only city'),
+          'default_widget' => 'cc_usa_location_short',
+          'default_formatter' => 'geonames_usa_location_short_formatter',
+      ),
+      
+  );
+  return $field_Info;
+}
+
+/**
+ * Implements hook_menu().
+ */
+function geonames_usa_menu() {
+  $items['geonames_usa/autocomplete'] = array(
+      'title' => 'Geonames Field City Autocomplete',
+      'page callback' => 'geonames_usa_autocomplete_callback',
+      'access arguments' => array('access content'),
+      'type' => MENU_CALLBACK,
+  );
+  $items['geonames_usa_short/autocomplete'] = array(
+      'title' => 'Geonames Field City Autocomplete',
+      'page callback' => 'geonames_usa_short_autocomplete_callback',
+      'access arguments' => array('access content'),
+      'type' => MENU_CALLBACK,
+  );
+  return $items;
+}
+
+/**
+ * Implements hook_field_widget_info().
+ */
+function geonames_usa_field_widget_info() {
+  $widget = array(
+      'cc_usa_location' => array(
+          'label' => t('Geonames location'),
+          'field types' => array('geonames_usa_location'),
+      ),
+      'cc_usa_location_short' => array(
+          'label' => t('Geonames location short'),
+          'field types' => array('geonames_usa_location_short'),
+      ),
+  );
+  return $widget;
+}
+/**
+ * Implements hook_field_formatter_info().
+ */
+function geonames_usa_field_formatter_info() {
+  // returning array
+  return array(
+      //name of a format for code
+      'geonames_usa_location_formatter' => array(
+          // dispalyed name of format
+          'label' => t('Location'),
+          // field in DB with which our format will work
+          'field types' => array('geonames_usa_location'),
+      ),
+      'geonames_usa_location_short_formatter' => array(
+          // dispalyed name of format
+          'label' => t('Location short'),
+          // field in DB with which our format will work
+          'field types' => array('geonames_usa_location_short'),
+      ),
+  );
+}
+/**
+ * Implements hook_field_widget_form().
+ */
+function geonames_usa_field_widget_form(&$form, &$form_state, $field, $instance, $langcode, $items, $delta, $element) {
+  if ($instance['widget']['type'] == 'cc_usa_location') {
+
+    drupal_add_js(drupal_get_path('module', 'geonames_usa') . '/geonames_usa.js', 'file');
+    //drupal_add_js(array('geonames_usa' => array($field['field_name'] => str_replace('_', '-', $field['field_name']))), 'setting');
+    $settings = $instance['settings'];
+    $list = _geonames_usa_list_state();
+    array_unshift($list, 'Any');
+    $state = isset($items[$delta]['gnstid']) ? $items[$delta]['gnstid'] : $settings['default_state'];
+    $element['gnstid'] = array(
+        '#type' => 'select',
+        '#options' => $list,
+        '#title' => t('State'),
+        '#required' => isset($settings['required_state']) ? $settings['required_state'] : FALSE,
+        '#default_value' => isset($items[$delta]['gnstid']) ? $items[$delta]['gnstid'] : $settings['default_state'],
+    );
+    if (isset($items[$delta]['gnciid'])) {
+      $city_default = _geonames_usa_get_city($items[$delta]['gnciid']);
+      $city_default = $city_default['name'];
+    }
+    else {
+      $city_default = '';
+    }
+    $element['gnciid'] = array(
+        '#type' => 'textfield',
+        '#maxlength' => 255,
+        '#title' => t('City'),
+        '#required' => isset($settings['required_city']) ? $settings['required_city'] : FALSE,
+        '#default_value' => $city_default,
+        '#autocomplete_path' => 'geonames_usa/autocomplete/' . $field['field_name'] . '/' . $state,
+        '#element_validate' => array('_geonames_usa_autocomplete_validate'),
+    );
+
+  }
+  if ($instance['widget']['type'] == 'cc_usa_location_short') {
+  
+    //drupal_add_js(drupal_get_path('module', 'geonames_usa') . '/geonames_usa_short.js', 'file');
+    $settings = $instance['settings'];
+    if (isset($items[$delta]['gnciid'])) {
+      $city_default = _geonames_usa_get_city($items[$delta]['gnciid']);
+      $city_default = '"' . $city_default['name'] . ', ' . $city_default['admin1_code'] . '"';
+    }
+    else {
+      $city_default = '';
+    }
+    $element['gnciid'] = array(
+        '#type' => 'textfield',
+        '#maxlength' => 255,
+        '#title' => t('Location'),
+        '#default_value' => $city_default,
+        '#autocomplete_path' => 'geonames_usa_short/autocomplete/' . $field['field_name'],
+        '#element_validate' => array('_geonames_usa_autocomplete_validate_short'),
+    );
+  
+  }
+  return $element;
+}
+
+/**
+ * Form element validate handler for autocomplete element.
+ */
+function _geonames_usa_autocomplete_validate($element, &$form_state, $form) {
+  // Autocomplete widgets do not send their gnciid in the form, so we must detect
+  // them here and process city independently.
+  // If a value was entered into the autocomplete...
+  $value = NULL;
+  if (!empty($element['#value'])) {
+    $state = $form_state['values'][$element['#array_parents'][0]][$element['#array_parents'][1]][$element['#array_parents'][2]]['gnstid'];
+    
+    $query = db_select('geonames_usa_cityinfo', 'g');
+    // Select rows that match by city name.
+    $query
+    ->condition('g.name', $element['#value'], '=');
+    if (strlen($state) > 1) {
+      $query->condition('g.admin1_code', $state, '=');
+    }
+    $query->fields('g', array('gnciid', 'name'))
+    ->orderBy('name', 'ASC')
+    ->range(0, 1);
+    $result = $query->execute();
+    $value_return = $result->fetchAssoc();
+    // Try to get a match from the input string when the user didn't use the
+    // autocomplete but filled in a value manually.
+    $value = $value_return['gnciid'] ? $value_return['gnciid'] : '';
+  }
+
+  $clicked_button = end($form_state['triggering_element']['#parents']);
+
+  if (empty($value) && !empty($element['#value']) && (!in_array($clicked_button, array('upload_button', 'remove_button')))) {
+    form_error($element, t('!name is not valid value.', array('!name' => $element['#title'])));
+  }
+  else {
+    // Update the value of this element so the field can validate the product IDs.
+    form_set_value($element, $value, $form_state);
+  };
+
+}
+function _geonames_usa_autocomplete_validate_short($element, &$form_state, $form) {
+  // Autocomplete widgets do not send their gnciid in the form, so we must detect
+  // them here and process city independently.
+  // If a value was entered into the autocomplete...
+  $value = NULL;
+  if (!empty($element['#value'])) {
+    $element['#value'] = str_replace('"', '', $element['#value']);
+    $state = mb_substr($element['#value'], -2);
+    $city = mb_substr($element['#value'], 0, -4);
+    
+    $query = db_select('geonames_usa_cityinfo', 'g');
+    // Select rows that match by city name.
+    $query
+    ->condition('g.name', $city, '=');
+    if (strlen($state) > 1) {
+      $query->condition('g.admin1_code', $state, '=');
+    }
+    $query->fields('g', array('gnciid', 'name'))
+    ->orderBy('name', 'ASC')
+    ->range(0, 1);
+    $result = $query->execute();
+    $value_return = $result->fetchAssoc();
+    // Try to get a match from the input string when the user didn't use the
+    // autocomplete but filled in a value manually.
+    $value = $value_return['gnciid'] ? $value_return['gnciid'] : '';
+  }
+
+  $clicked_button = end($form_state['triggering_element']['#parents']);
+
+  if (empty($value) && !empty($element['#value']) && (!in_array($clicked_button, array('upload_button', 'remove_button')))) {
+    form_error($element, t('!name is not valid value.', array('!name' => $element['#title'])));
+  }
+  else {
+    // Update the value of this element so the field can validate the product IDs.
+    form_set_value($element, $value, $form_state);
+  };
+
+}
+
+/**
+ * Implements hook_field_presave().
+ *
+ */
+function geonames_usa_field_presave($entity_type, $entity, $field, $instance, $langcode, &$items) {
+}
+
+/**
+ * Implements hook_field_widget_error().
+ */
+function geonames_usa_field_widget_error($element, $error) {
+  form_error($element, $error['message']);
+}
+
+/**
+ * Page callback: Outputs JSON for autocomplete suggestions.
+ *
+ * Path: geonames_usa/autocomplete
+ * @param $field_name
+ *   The name of the location field.
+ * @param $string
+ *   The label of the city to query by.
+ */
+function geonames_usa_autocomplete_callback($field_name, $state, $string = '') {
+
+  $test_output = array($field_name, $state, $string);
+
+  //drupal_json_output($term_matches);
+
+  $args = func_get_args();
+  // Shift off the $field_name argument.
+  array_shift($args);
+  array_shift($args);
+  $tags_typed = implode('/', $args);
+
+  // Make sure the field exists and is a geonames location field.
+  if (!($field = field_info_field($field_name)) || $field['type'] !== 'geonames_usa_location') {
+    // Error string. The JavaScript handler will realize this is not JSON and
+    // will display it as debugging information.
+    print t('Geonames location field @field_name not found.', array('@field_name' => $field_name));
+    exit;
+  }
+
+  $tags_typed = drupal_explode_tags($tags_typed);
+  $tag_last = drupal_strtolower(array_pop($tags_typed));
+
+  $matches = array();
+  if ($tag_last != '') {
+
+    $query = db_select('geonames_usa_cityinfo', 'g');
+
+    // Select rows that match by city name.
+    $query->condition('g.name', db_like($tag_last) . '%', 'LIKE');
+    //->condition('g.name', '%' . db_like($tag_last) . '%', 'LIKE')
+    
+    if (strlen($state) > 1) {
+      $query->condition('g.admin1_code', $state, '=');
+    }
+    $query->fields('g', array('gnciid', 'name'))
+    ->orderBy('name', 'ASC')
+    ->range(0, 10);
+    $result = $query->execute();
+    $tags_return = $result->fetchAllKeyed();
+    $prefix = '';
+
+    $term_matches = array();
+    foreach ($tags_return as $gnciid => $name) {
+      $n = $name;
+      // City names containing commas or quotes must be wrapped in quotes.
+      if (strpos($name, ',') !== FALSE || strpos($name, '"') !== FALSE) {
+        //$n = '"' . str_replace('"', '""', $name) . '"';
+      }
+      //$term_matches[$gnciid] = check_plain($name);
+      $term_matches[$prefix . $n] = check_plain($name);
+    }
+  }
+
+  drupal_json_output($term_matches);
+}
+
+function geonames_usa_short_autocomplete_callback($field_name, $string = '') {
+
+  $test_output = array($field_name, $string);
+  
+  
+
+  //drupal_json_output($term_matches);
+
+  $args = func_get_args();
+  
+  // Shift off the $field_name argument.
+  array_shift($args);
+  $tags_typed = implode('/', $args);
+  
+  // Make sure the field exists and is a geonames location field.
+  if (!($field = field_info_field($field_name)) || $field['type'] !== 'geonames_usa_location_short') {
+    // Error string. The JavaScript handler will realize this is not JSON and
+    // will display it as debugging information.
+    print t('Geonames location short field @field_name not found.', array('@field_name' => $field_name));
+    exit;
+  }
+
+  $tags_typed = drupal_explode_tags(drupal_strtolower($tags_typed));
+  
+  $tag_first = array_shift($tags_typed);
+  if (!empty($tags_typed)) {
+    $tag_second = array_shift($tags_typed);
+  }
+
+  $matches = array();
+  if ($tag_first != '') {
+
+    $query = db_select('geonames_usa_cityinfo', 'g');
+    // Select rows that match by city name.
+    $query->condition('g.name', db_like($tag_first) . '%', 'LIKE');
+    $query->condition('g.population', 5000, '>');
+    if(isset($tag_second) && $tag_second != '') {
+      $query->condition('g.admin1_code', db_like($tag_second) . '%', 'LIKE');
+    }
+    $query->fields('g', array('gnciid', 'name', 'admin1_code'))
+    ->groupBy('name')
+    ->groupBy('admin1_code')
+    ->orderBy('name', 'ASC')
+    ->orderBy('admin1_code', 'ASC')
+    
+    ->range(0, 10);
+    $result = $query->execute();
+    $tags_return = $result->fetchAll();
+    $prefix = '';
+
+    $term_matches = array();
+    foreach ($tags_return as $location) {
+      $n = $name = $location->name . ', ' . $location->admin1_code;
+      // City names containing commas or quotes must be wrapped in quotes.
+      if (strpos($name, ',') !== FALSE || strpos($name, '"') !== FALSE) {
+        $n = '"' . str_replace('"', '""', $name) . '"';
+      }
+      //$term_matches[$gnciid] = check_plain($name);
+      $term_matches[$prefix . $n] = check_plain($name);
+    }
+  }
+
+  drupal_json_output($term_matches);
+}
+
+/**
+ * Implements hook_field_instance_settings_form().
+ */
+function geonames_usa_field_instance_settings_form($field, $instance) {
+  $form['required_state'] = array(
+      '#type' => 'checkbox',
+      '#title' => t('Required the state'),
+      '#default_value' => isset($instance['settings']['required_state']) && ($instance['settings']['required_state'] !== '') ? $instance['settings']['required_state'] : FALSE,
+      '#description' => t('If checked, the state field will be required.'),
+  );
+  $form['required_city'] = array(
+      '#type' => 'checkbox',
+      '#title' => t('Required the city'),
+      '#default_value' => isset($instance['settings']['required_city']) && ($instance['settings']['required_city'] !== '') ? $instance['settings']['required_city'] : FALSE,
+      '#description' => t('If checked, the city field will be required.'),
+  );
+  return $form;
+}
+
+/**
+ * Implements hook_field_formatter_view().
+ */
+function geonames_usa_field_formatter_view($entity_type, $entity, $field, $instance, $langcode, $items, $display) {
+  $elements = array();
+  $settings = $instance['settings'];
+  switch ($display['type']) {
+    case 'geonames_usa_location_formatter':
+      foreach ($items as $delta => $item) {
+        $state = $item['gnstid'];
+        $city = _geonames_usa_get_city($item['gnciid']);
+        $location = t('Your location');
+        if (strlen($state) > 1) {
+          $location = $city['name'] . ', ' . $state;
+        }
+        else {
+          $location = $city['name'];
+        }        
+        $elements[$delta] = array(
+            '#markup' => '<p>' . $location . '</p>',
+        );
+      }
+      break;
+      case 'geonames_usa_location_short_formatter':
+        foreach ($items as $delta => $item) {
+          $city = _geonames_usa_get_city($item['gnciid']);
+          $location = t('Your location');
+          if ($city) {
+            $location = $city['name'] . ', ' . $city['admin1_code'];
+          }
+          $elements[$delta] = array(
+              '#markup' => '<p>' . $location . '</p>',
+          );
+        }
+        break;
+  }
+  return $elements;
+}
+
+/**
+ * Implements hook_field_is_empty().
+ */
+function geonames_usa_field_is_empty($item, $field) {
+  if ($field['type'] == 'geonames_location') {
+    if (empty($item['gnstid']) && empty($item['gnciid'])) {
+      return TRUE;
+    }
+  }
+  if ($field['type'] == 'geonames_location_short') {
+    if (empty($item['gnciid'])) {
+      return TRUE;
+    }
+  }
+}
+
+/**
+ * Get list of state
+ */
+function _geonames_usa_list_state($condition = NULL) {
+  $query = db_select('geonames_usa_cityinfo', 'gnci');
+  $query
+  ->distinct()
+  ->fields('gnci', array('admin1_code'))
+  ->orderBy('admin1_code', 'ASC');
+  $result = $query->execute();
+  $list = array();
+  foreach ($result as $record) {
+    // Do something with each $record
+    $list[$record->admin1_code] = $record->admin1_code;
+  }
+  return $list;
+}
+
+/**
+ * Get country by id
+ */
+// Posibly may delete
+function _geonames_usa_get_state($state_id) {
+  $query = db_select('geonames_usa_cityinfo', 'gnci');
+  $query
+  ->fields('gnco', array('gnstid', 'name'))
+  ->condition('gnco.gnstid', $country_id, '=')
+  ->orderBy('name', 'ASC');
+  $result = $query->execute();
+  $country = $result->fetchAssoc();
+  return $country ? $country : NULL;
+}
+
+/**
+ * Get city by id
+ */
+function _geonames_usa_get_city($city_id) {
+  $query = db_select('geonames_usa_cityinfo', 'g');
+
+  $result = $query
+  ->condition('g.gnciid', $city_id, '=')
+  ->fields('g', array('gnciid', 'name', 'admin1_code'))
+  ->orderBy('name', 'ASC')
+  ->range(0, 1)
+  ->execute();
+  $city = $result->fetchAssoc();
+  return $city ? $city : NULL;
+}

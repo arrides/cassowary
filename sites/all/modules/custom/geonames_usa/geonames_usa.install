@@ -1,0 +1,166 @@
+<?php
+
+
+/**
+ * @file
+ * Install, update and uninstall functions for the geonames module.
+ *
+ */
+
+/**
+ * Implements hook_schema().
+ */
+function geonames_usa_schema() {
+  $schema['geonames_usa_cityinfo'] = array(
+      'description' => 'GeoNames.org City Information',
+      'fields' => array(
+          'gnciid' => array(
+              'description' => 'integer id of record in geonames database',
+              'type' => 'int',
+              'not null' => TRUE,
+          ),
+          'name' => array(
+              'description' => 'name of geographical point',
+              'type' => 'varchar',
+              'length' => '200',
+              'not null' => FALSE,
+          ),
+          'asciiname' => array(
+              'description' => 'name of geographical point in plain ascii',
+              'type' => 'varchar',
+              'length' => '200',
+              'not null' => FALSE,
+          ),
+          'alternatenames' => array(
+              'description' => 'alternatenames, comma separated',
+              'type' => 'text',
+              'size' => 'medium',
+              'not null' => FALSE,
+          ),
+          'latitude' => array(
+              'description' => 'latitude in decimal degrees',
+              'type' => 'float',
+              'not null' => FALSE,
+          ),
+          'longitude' => array(
+              'description' => 'longitude in decimal degrees',
+              'type' => 'float',
+              'not null' => FALSE,
+          ),
+          'feature_class' => array(
+              'description' => 'see http://www.geonames.org/export/codes.html',
+              'type' => 'char',
+              'length' => '2',
+              'not null' => FALSE,
+          ),
+          'feature_code' => array(
+              'description' => 'see http://www.geonames.org/export/codes.html',
+              'type' => 'varchar',
+              'length' => '10',
+              'not null' => FALSE,
+          ),
+          'country_code' => array(
+              'description' => 'ISO-3166 2-letter country code',
+              'type' => 'char',
+              'length' => '3',
+              'not null' => FALSE,
+          ),
+          'cc2' => array(
+              'description' => 'alternate country codes, comma separated, ISO-3166 2-letter country code',
+              'type' => 'char',
+              'length' => '60',
+              'not null' => FALSE,
+          ),
+          'admin1_code' => array(
+              'description' => 'fipscode (subject to change to iso code)',
+              'type' => 'varchar',
+              'length' => '20',
+              'not null' => FALSE,
+          ),
+          'admin2_code' => array(
+              'description' => 'code for the second administrative division, a county in the US',
+              'type' => 'varchar',
+              'length' => '80',
+              'not null' => FALSE,
+          ),
+          'admin3_code' => array(
+              'description' => 'code for third level administrative division',
+              'type' => 'varchar',
+              'length' => '20',
+              'not null' => FALSE,
+          ),
+          'admin4_code' => array(
+              'description' => 'code for fourth level administrative division',
+              'type' => 'varchar',
+              'length' => '20',
+              'not null' => FALSE,
+          ),
+          'population' => array(
+              'description' => 'bigint',
+              'type' => 'int',
+              'not null' => FALSE,
+          ),
+          'elevation' => array(
+              'description' => 'in meters',
+              'type' => 'int',
+              'not null' => FALSE,
+          ),
+          'gtopo30' => array(
+              'description' => 'digital elevation model, srtm3 or gtopo30, average elevation of 3',
+              'type' => 'int',
+              'not null' => FALSE,
+          ),
+          'timezone' => array(
+              'description' => 'the timezone id (see file timeZone.txt)',
+              'type' => 'char',
+              'length' => '31',
+              'not null' => FALSE,
+          ),
+          'modification_date' => array(
+              'description' => 'date of last modification in yyyy-MM-dd format',
+              'type' => 'char',
+              'length' => '31',
+              //'mysql_type' => 'DATE',
+              'not null' => FALSE,
+          ),
+      ),
+      'primary key' => array('gnciid'),
+  );
+  
+  return $schema;
+}
+
+/**
+ * Implements hook_field_schema().
+ */
+
+function geonames_usa_field_schema() {
+  $columns = array(        
+        'gnstid' => array(
+            'description' => 'State identifier',
+            'type' => 'varchar',
+            'length' => '20',
+            'not null' => FALSE,
+        ),
+        'gnciid'   => array(
+            'type' => 'int',
+            'not null' => FALSE,
+            'unsigned' => TRUE,
+            'description' => 'Unique geonames city identifier',
+        ),
+      /*'foreign keys' => array(
+          'gnciid' => array(
+              'table' => 'geonames_usa_cityinfo',
+              'columns' => array('gnciid' => 'gnciid'),
+          ),
+          'gncoid' => array(
+              'table' => 'geonames_usa_countryinfo',
+              'columns' => array('gncoid' => 'gncoid'),
+          ),
+      ),*/
+      //'primary key' => array('gnfid'),
+  );  
+  return array(
+    'columns' => $columns,
+  );
+}

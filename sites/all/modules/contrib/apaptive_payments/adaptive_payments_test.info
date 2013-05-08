@@ -1,0 +1,7 @@
+; $Id:
+name = Adaptive payments test examples
+description = PayPal Adaptive Payments test examples.
+dependencies[] = adaptive_payments
+package = PayPal API
+core = 7.x
+project = adaptive_payments

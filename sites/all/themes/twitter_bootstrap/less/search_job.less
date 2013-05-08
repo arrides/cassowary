@@ -1,0 +1,231 @@
+/* Job Search Page */
+
+// Search Form
+.pane-cassowary-search-cassowarysearchjob {
+  h2.pane-title {
+    font-size: 24px;
+    font-weight: normal;
+    line-height: 30px;
+    padding: 21px 0 7px 0;
+  }
+  legend {
+    display: none;
+  }
+  .control-group,
+  .btn,
+  fieldset {
+    float: left;
+  }
+  form {
+    margin: 0;
+  }
+  .control-group {
+    margin-right: 10px;
+  }
+
+  .btn {
+    font-family: @HelveticaBold;
+    font-size: 21px;
+    font-weight: bold;
+    padding: 12px 25px;
+  }
+}
+
+
+
+.search-job-left,
+.search-job-middle {
+  float: left;
+}
+
+.search-job-left {
+  font-family: @helvetica;
+  width: 160px;
+
+  //Forms
+  fieldset {
+    margin-bottom: 20px;
+  }
+  legend {
+    display: none;
+  }
+  .control-group {
+    margin-bottom: 0;
+  }
+  input[type="text"],
+  input[type="search"] {
+    background-position: 100% -13px !important;
+    padding: 4px 6px;
+    width: 148px;
+  }
+  .form-type-textfield,
+  .form-type-radios {
+      margin-bottom: 15px;
+
+    & > .control-label {
+      color: #333333;
+      font-family: @HelveticaBold;
+      font-weight: normal;
+      line-height: 30px;
+      margin: 0;
+      text-transform: uppercase;
+    }
+  }
+  .form-type-radios.form-item-dateposted {
+    margin-top: 15px;
+  }
+  label.radio, label.checkbox {
+    line-height: 24px;
+    margin-bottom: 0;
+    padding-top: 0 !important;
+  }
+
+    // FILTERS
+    .table.table-select-processed {
+        th, td {
+            border: 0;
+            font-family: @helveticaneueltstd-bd;
+            font-size: 14px;
+            line-height: 30px;
+            padding: 0;
+        }
+        thead th {
+            text-transform: uppercase;
+        }
+        tbody {
+            tr:nth-child(odd) td,
+            tr:nth-child(odd) th {
+                background-color: transparent;
+            }
+            th, td {
+                color: #669933;
+            }
+        }
+    }
+}
+
+
+
+
+
+.search-job-middle {
+  margin-left: 20px;
+  width: 782px;
+
+  //Item
+  .search-job-string {
+    background: #fafafa;
+    border-left: 10px solid #c8c8c8;
+    font-family: @helvetica;
+    margin: 13px 0;
+    padding: 20px;
+
+    .row {
+      margin-left: 0;
+    }
+
+    .title a,
+    .field-name-field-price {
+      color: #669933;
+      font-family: @HelveticaBold;
+      font-size: 18px;
+      line-height: 30px;
+    }
+    .field-name-field-price {
+      float: right;
+      margin-top: -30px;
+    }
+    .field-name-field-description,
+    .description  {
+      color: #333;
+      line-height: 18px;
+      margin-top: 15px;
+    }
+    .date {
+      color: #669933;
+      line-height: 18px;
+    }
+  }
+}
+
+.page-search-job,
+.page-search-resume {
+    //11.03.2013 Additional notes
+    .show_result,
+    .sort_by {
+      .clearfix();
+    }
+    .show_result {
+        font-family: @HelveticaBold;
+        font-size: 18px;
+        margin-bottom: 10px;
+    }
+    #show-with-save,
+    #sort_by_wrapper {
+      float: left;
+    }
+    .pager_count,
+    .pager_top {
+      float:right;
+    }
+    .pager_count .page-count-elements {
+        color: #669933;
+
+        span {
+            color: #000;
+        }
+    }
+    .keyword {
+        color: #669933;
+    }
+
+    .save_this_search {
+        .btn();
+        //font-family: @HelveticaNeueltstd-md;
+        font-family: @helvetica;
+        font-weight: bold;
+        margin-left: 15px;
+        vertical-align: baseline;
+    }
+
+    //Sorting, Pagination
+    .sort_by {
+        background: #e9e9e9;
+
+        #sort_by_wrapper {
+          font-family: @HelveticaBold;
+          font-size: 14px;
+          font-weight: normal;
+          line-height: 40px;
+          text-transform: uppercase;
+          padding-left: 12px;
+        }
+        .sort_relevance,
+        .sort_date {
+          font-family: @HelveticaRegular;
+          margin-left: 8px;
+          text-transform: none;
+
+          a {
+            text-decoration: underline;
+
+            &:hover {
+              text-decoration: none;
+            }
+          }
+        }
+        .sort_date {
+          border-left: 1px solid #d4d4d4;
+          padding-left: 8px;
+        }
+        .pagination,
+        .pagination:last-child {
+          background: none;
+          margin-top: 0px;
+        }
+    }
+}
+.page-search-resume fieldset.form-wrapper + .btn,
+.search-job-left fieldset.form-wrapper + .btn {
+    margin-bottom: 15px;
+}

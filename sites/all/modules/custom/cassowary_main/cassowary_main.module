@@ -1,0 +1,1469 @@
+<?php
+/**
+ * @file
+ * TODO: Enter file description here.
+ */
+
+/**
+ *  Implementation of hook_menu()
+ */
+function cassowary_main_menu() {
+  $items['social_links/%ctools_js/edit'] = array(
+      'title' => 'Edit social links',
+      'page callback' => 'cassowary_social_links_edit',
+      'page arguments' => array(1),
+      'access callback' => TRUE,
+      'type' => MENU_CALLBACK,
+  );
+  $items['cassowary-messages/%user'] = array(
+      'title' => 'Cassowary User portfolio messages',
+      'page callback' => 'cassowary_portfolio_messages',
+      'page arguments' => array(1),
+      'access callback' => 'user_view_access',
+      'access arguments' => array(1),
+      'type' => MENU_CALLBACK,
+  );
+  $items['notifications'] = array(
+    'title' => 'Notifications',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('cassowary_notifications_form'),
+    'access callback' => 'cassowary_notifications_access',
+    'type' => MENU_CALLBACK,
+  );
+
+  return $items;
+}
+
+/**
+ * Implements hook_help().
+ */
+function cassowary_main_help($path, $arg) {
+  switch ($path) {
+    case 'admin/help#cassowary_main':
+      return t("TODO: Create admin help text.");
+      // OPTIONAL: Add additional cases for other paths that should display help text.
+  }
+}
+
+/**
+ * Implements hook_form_alter().
+ */
+function cassowary_main_form_alter(&$form, &$form_state, $form_id) {
+  //dsm($form_id);
+  if ($form_id == 'user_login_block') {
+    $form['name']['#placeholder'] = t('Username');
+    $form['pass']['#placeholder'] = t('Password');
+    $form['actions']['submit']['#value'] = t('Sign In');
+    $form['actions']['submit']['#weight'] = 98;
+    $form['actions']['submit']['#attributes'] = array('class' => array('btn btn-green'));
+    unset($form['links']);
+    $forgot = '<div class="user-forgot">'. l(t('Forgot your password?'), 'user/password',  array('query' => array('destination' => 'front-page'))) .'</div>';
+    $register = '<div class="user-register">'. t('or ') . l(t('Sign Up'), 'user/register', array('query' => array('destination' => 'front-page'))) .'</div>';
+    $form['actions']['submit']['#suffix'] = $forgot . $register;
+  }
+  if ($form_id == 'views_form_user_profile_page_edit_block_1' || $form_id == 'views_form_user_profile_page_edit_block_2') {
+    //dsm($form);
+    unset($form['actions']['submit']);
+    $message = t('Loading');
+    $form['field_avatar'][0]['actions']['submit']['#ajax']['progress']['message'] = $message;
+    $form['field_location'][0]['actions']['submit']['#ajax']['progress']['message'] = $message;
+    $form['field_location'][0]['actions']['edit']['#ajax']['progress']['message'] = $message;
+    $form['field_first_name'][0]['actions']['submit']['#ajax']['progress']['message'] = $message;
+    $form['field_first_name'][0]['actions']['edit']['#ajax']['progress']['message'] = $message;
+    $form['field_specialization'][0]['actions']['submit']['#ajax']['progress']['message'] = $message;
+    $form['field_specialization'][0]['actions']['edit']['#ajax']['progress']['message'] = $message;
+    $form['field_bio'][0]['actions']['submit']['#ajax']['progress']['message'] = $message;
+    $form['field_bio'][0]['actions']['edit']['#ajax']['progress']['message'] = $message;
+  }
+  if ($form_id == 'views_form_user_profile_page_edit_block_1') {
+    //dsm($form);
+    $form['field_avatar'][0]['actions']['submit']['#ajax']['progress']['message'] = t('Loading');
+  }
+  if ($form_id == 'user_register_form') {
+    // change place for password-strength
+    drupal_add_js(
+      '(function ($) {
+  $(document).ready(function() {
+          var pas_str = $(".password-strength").html();
+          var innerWrapper = $(".password-parent");
+          $(".password-strength").remove();
+          $(innerWrapper).append(pas_str);
+  });
+})(jQuery);' , 'inline'
+    );
+    drupal_add_js(drupal_get_path('module', 'cassowary_main') .'/js/cassowary_main_user_login.js', 'file');
+    // show field company for employer
+    global $language;
+    if ($language->language == 'en') {
+      $lang = 'und';
+    }
+    else {
+      $lang = $language->language;
+    }
+    //dsm($form);
+    $form['field_company_text']['#access'] = TRUE;
+    $form['field_company_text'][$lang][0]['#required'] = TRUE;
+    $form['field_company_text']['#states'] = array(
+            // Only show this field when the '#edit-field-role-und-1' checkbox is enabled.
+            'visible' => array(
+                ':input[name="field_role[' . $lang . ']"]' => array('value' => 1),
+            ),
+        );
+    //$form['field_company_logo']['#access'] = TRUE;
+    //$form['field_company_logo']['#states'] = array(
+        // Only show this field when the '#edit-field-role-und-1' checkbox is enabled.
+    //    'visible' => array(
+    //        ':input[name="field_role[' . $lang . ']"]' => array('value' => 1),
+    //    ),
+    //);
+    $get =  drupal_get_query_parameters();
+    if(isset($get['role'])){
+      $form['field_role'][$lang]['#default_value'] = 1;
+	  //$form_state['field']['field_role'][$lang]['instance']['default_value'][0]['value'] = 1;
+    }
+	//dpm($form);
+	//dpm($form_state);
+  }
+  if($form_id == 'article_node_form' || $form_id == 'blog_post_node_form' || $form_id == 'blurb_node_form' || $form_id == 'facebook_post_node_form' || $form_id == 'job_node_form' || $form_id == 'tweet_node_form') {
+    drupal_add_js(drupal_get_path('module', 'cassowary_main') .'/js/cassowary_main_node.js', 'file');
+  }
+  if($form_id == 'facebook_post_node_form' ) {
+    $options = array(0 => t('Add Post'), 1 => t('Add Photo'));
+    $form['post_image'] = array(
+        '#type' => 'radios',
+        '#title' => '',
+        '#default_value' => 0,
+        '#options' => $options,
+    );
+
+    drupal_add_js(drupal_get_path('module', 'cassowary_main') .'/js/cassowary_main_fb_post.js', 'file');
+
+  }
+  
+  if($form_id == 'job_node_form') {
+  	
+  //	unset($form['body']['und']['#after_build']);
+  	//$form['body']['#attributes']['class'][0] = 'field-type-text-long';
+  	//$form['body']['#attributes']['class'][2] = 'field-widget-text-textarea';
+  	//$form['body']['und'][0]['#rows'] = 5;
+  	//unset($form['body']);
+  	//$form['body']['und'][0]['#base_type'] = 'textfield';
+  	//dsm($form);
+  	/*$form['#type'] = 'textarea';
+  	$form['#format'] = 'full_html';*/
+  	/*$form['field_description']['und'][0]['#base_type'] = 'textarea';
+  	$form['field_description']['und'][0]['#format'] = 'filtered_html';
+  	$form['field_description']['und'][0]['#after_build'] = 'field_form_element_after_build';*/
+  	//'#format'=>'full_html',
+  	//dsm($form);
+  	unset($form['field_company_logo']);
+    drupal_set_title(t('Create a New Job Listing'));
+    if(isset($form['#prefix'])) {
+    	$form['#prefix'] = $form['#prefix'] . '<div class="form-inner">';
+    	$form['#suffix'] = '</div>';
+    }
+  }
+  
+  if($form_id == 'blurb_node_form') {
+  	drupal_set_title('Blurb '. $form['title']['#default_value']);
+    if(isset($form['#prefix'])) {
+    	$form['#prefix'] = $form['#prefix'] . '<div class="form-inner">';
+    	$form['#suffix'] = '</div>';
+    }
+  }
+
+  if($form_id == 'article_node_form') {
+  	drupal_set_title('Article '. $form['title']['#default_value']);
+    if(isset($form['#prefix'])) {
+    	$form['#prefix'] = $form['#prefix'] . '<div class="form-inner">';
+    	$form['#suffix'] = '</div>';
+    }
+  }
+  
+  if($form_id == 'facebook_post_node_form') {
+  	//drupal_set_title('Facebook Post '. $form['title']['#default_value']);
+  	drupal_set_title('Facebook Post');
+    if(isset($form['#prefix'])) {
+    	$form['#prefix'] = $form['#prefix'] . '<div class="form-inner">';
+    	$form['#suffix'] = '</div>';
+    }
+  }
+  
+  if($form_id == 'tweet_node_form') {
+  	drupal_set_title('Tweet '. $form['title']['#default_value']);
+    if(isset($form['#prefix'])) {
+    	$form['#prefix'] = $form['#prefix'] . '<div class="form-inner">';
+    	$form['#suffix'] = '</div>';
+    }
+  }  
+  
+}
+
+/**
+ * Implements hook_preprocess_page().
+ */
+function cassowary_main_preprocess_page(&$variables) {
+  global $user;
+  //dsm($variables);
+  if(arg(0) == 'user' && (arg(1) == 'register' || arg(1) == 'password') && $variables['user']->uid == 0) {
+    drupal_set_title(t('Sign up your Cassowary account'));
+  }
+  if(arg(0) == 'user' && (arg(1) == NULL || arg(1) == 'login') && $variables['user']->uid == 0) {
+    drupal_set_title(t('Sign in your Cassowary account'));
+  }  
+  if(arg(0) == 'search_resume') {
+    drupal_set_title(t('Portfolio Search'));
+  }
+  if($variables['user']->uid != 1) {
+    unset($variables['tabs']['#primary']);
+  }
+  if (arg(0) == 'node' && (arg(1) == 'add' || (is_numeric(arg(1)) && arg(2) == 'edit'))) {
+    drupal_add_js(drupal_get_path('module', 'cassowary_main') .'/cassowary_main_preview_node.js', 'file');
+  }
+  if (arg(0) == 'node') {
+    drupal_add_js(drupal_get_path('module', 'cassowary_main') .'/js/cassowary_go_back.js', 'file');
+  }
+  if (arg(0) == 'user' && is_numeric(arg(1)) && arg(2) == 'portfolio') {
+    $variables['theme_hook_suggestions'][] = 'page__portfolio';
+    // settings for jcarousel
+    if(is_numeric(arg(3)) && isset($_SESSION['carousel'])) {
+      $index = $_SESSION['carousel']['index'];
+      $count = $_SESSION['carousel']['count'];
+      unset($_SESSION['carousel']);
+      $k = 0;
+      if($index > 2) {
+        $k = $index - 2;
+      }
+      $val['jcarousel-dom-1']['start'] = $k + 1;
+      drupal_add_js(array('jcarousel' => array('carousels' => $val)), 'setting');
+      drupal_add_js(drupal_get_path('module', 'cassowary_main') .'/js/cassowary_main_portfolio.js', 'file');
+    }
+  }
+  if (arg(0) == 'messages' || arg(0) == 'hire' || arg(0) == 'billing-plans') {
+    $variables['theme_hook_suggestions'][] = 'page__message';
+  }
+  if ((arg(0) == 'user' && is_numeric(arg(1))) || (arg(0) == 'user-jobs')) {
+    $variables['theme_hook_suggestions'][] = 'page__portfolio';
+  }
+  if (arg(0) == 'user' && is_numeric(arg(1)) && arg(2) == 'portfolio-edit') {
+    drupal_add_js(drupal_get_path('module', 'cassowary_main') . '/js/cassowary_temp.js');
+    drupal_add_js(drupal_get_path('module', 'cassowary_main') .'/js/cassowary_main_portfolio_edit.js', 'file');
+    drupal_add_js(array('user_prof' => arg(1)), 'setting');
+  }
+  if (arg(0) == 'user' && is_numeric(arg(1)) && ((arg(2) == 'portfolio') || (arg(2) == 'portfolio-edit')) ) {
+  	drupal_add_js(drupal_get_path('module', 'cassowary_main') . '/js/cassowary_body.js');
+  }
+  if ((arg(0) == 'node') && (arg(1) == 'add' && arg(2) == 'job')) {
+    $variables['theme_hook_suggestions'][] = 'page__job';
+  }
+  if ((arg(0) == 'node') && arg(1) == 'add' && (arg(2) == 'article' || arg(2) == 'blog-post' || arg(2) == 'blurb' || arg(2) == 'facebook-post' || arg(2) == 'tweet')) {
+    $variables['theme_hook_suggestions'][] = 'page__portfolio';
+  }
+  if (arg(0) == 'node' && is_numeric(arg(1)) && !arg(2)) {
+    if(isset($variables['node']) && $variables['node']->type == 'job' && $variables['node']->uid == $variables['user']->uid)
+    $variables['theme_hook_suggestions'][] = 'page__portfolio';
+    if(isset($variables['node']) && $variables['node']->type == 'job') {
+      //drupal_add_js(drupal_get_path('module', 'cassowary_main') . '/js/cassowary_job_position.js');
+    } 
+  }
+  if ((arg(0) == 'node') && (arg(2) == 'edit')) {
+  	$variables['theme_hook_suggestions'][] = 'page__portfolio';
+  }  
+  if (arg(0) == 'notifications') {
+    $variables['theme_hook_suggestions'][] = 'page__portfolio';
+  }
+  if (arg(0) == 'saved-searches') {
+    $variables['theme_hook_suggestions'][] = 'page__portfolio';
+  }
+  if (arg(0) == 'saved-jobs') {
+    $variables['theme_hook_suggestions'][] = 'page__portfolio';
+  }
+  if (arg(0) == 'posted_jobs') {
+    $variables['theme_hook_suggestions'][] = 'page__portfolio';
+  }
+  if (arg(0) == 'messages_private') {
+  	$variables['theme_hook_suggestions'][] = 'page__portfolio';
+  } 
+  if (arg(0) == 'messages_archive') {
+  	$variables['theme_hook_suggestions'][] = 'page__portfolio';
+  }  
+  if (arg(0) == 'dashboard') {
+  	if (in_array('employer', $user->roles)){
+  	  drupal_add_js(drupal_get_path('module', 'cassowary_main') .'/js/cassowary_main_dashboard_employer.js', 'file');
+  	}
+  }
+  
+}
+
+/**
+ * Implements hook_jcarousel_skin_info().
+ */
+function cassowary_main_jcarousel_skin_info() {
+  $skins = array();
+
+  $skins['cassowary'] = array(
+      'title' => t('Cassowary carousel'),
+      'file' => 'skins/cassowary/cassowary-jcarousel.css',
+  );
+
+  return $skins;
+}
+
+/**
+ * Implements hook_block_info().
+ *
+ * This hook declares what blocks are provided by the module.
+ */
+function cassowary_main_block_info() {
+
+  $blocks['cassowary_user_dashboard'] = array(
+      'info' => t('Cassowary User dashboard'),
+      'status' => TRUE,
+      'cache' => DRUPAL_CACHE_PER_USER,
+      'region' => '-1',
+  );
+  $blocks['cassowary_user_dashboard_tabs'] = array(
+      'info' => t('Cassowary User tabs'),
+      'status' => TRUE,
+      'cache' => DRUPAL_CACHE_PER_USER,
+      'region' => '-1',
+  );
+  $blocks['cassowary_writer_add'] = array(
+      'info' => t('Cassowary Writer add'),
+      'status' => TRUE,
+      'cache' => DRUPAL_CACHE_PER_USER,
+      'region' => '-1',
+  );
+  $blocks['cassowary_social_links'] = array(
+      'info' => t('Cassowary social links'),
+      'status' => TRUE,
+      'cache' => DRUPAL_CACHE_PER_USER,
+      'region' => '-1',
+  );
+  $blocks['cassowary_social_links_view'] = array(
+      'info' => t('Cassowary social links view'),
+      'status' => TRUE,
+      'cache' => DRUPAL_CACHE_PER_USER,
+      'region' => '-1',
+  );
+  $blocks['cassowary_portfolio_messages'] = array(
+      'info' => t('Cassowary User portfolio messages'),
+      'status' => TRUE,
+      'cache' => DRUPAL_CACHE_PER_USER,
+      'region' => '-1',
+  );
+  $blocks['cassowary_saved_jobs'] = array(
+      'info' => t('Saved jobs'),
+      'status' => TRUE,
+      'cache' => DRUPAL_CACHE_PER_USER,
+      'region' => '-1',
+  );
+  $blocks['cassowary_user_dashboard2'] = array(
+  		'info' => t('Cassowary User dashboard 2'),
+  		'status' => TRUE,
+  		'cache' => DRUPAL_CACHE_PER_USER,
+  		'region' => '-1',
+  );
+  $blocks['cassowary_posted_jobs'] = array(
+  		'info' => t('Cassowary posted jobs'),
+  		'status' => TRUE,
+  		'cache' => DRUPAL_CACHE_PER_USER,
+  		'region' => '-1',
+  );  
+  return $blocks;
+}
+
+/**
+ * Implements hook_block_view().
+ *
+ * This hook generates the contents of the blocks themselves.
+ */
+function cassowary_main_block_view($delta = '') {
+  //The $delta parameter tells us which block is being requested.
+  switch ($delta) {
+    case 'cassowary_user_dashboard_tabs':
+      // The subject is displayed at the top of the block. Note that it
+      // should be passed through t() for translation. The title configured
+      // for the block using Drupal UI supercedes this one.
+      $block['subject'] = t('Cassowary User tabs');
+      // The content of the block is typically generated by calling a custom
+      // function.
+      $block['content'] = cassowary_user_tabs_content();
+      break;
+    case 'cassowary_user_dashboard':
+        $block['subject'] = t('Cassowary User dashboard');
+        $block['content'] = cassowary_user_dashboard_content();
+        break;
+    case 'cassowary_writer_add':
+        $block['subject'] = t('Cassowary Writer add');
+        $block['content'] = cassowary_writer_add_content();
+        drupal_add_js(drupal_get_path('module', 'cassowary_main') . '/js/cassowary_writer_add.js');
+        drupal_add_css(drupal_get_path('module', 'cassowary_main') . '/css/cassowary_writer_add.css');
+        break;
+    case 'cassowary_social_links':
+        $block['subject'] = t('Cassowary social links');
+        $block['content'] = cassowary_social_links_content();
+        break;
+    case 'cassowary_social_links_view':
+        $block['subject'] = t('Cassowary social links view');
+        $block['content'] = cassowary_social_links_content_view();
+        break;
+    case 'cassowary_portfolio_messages':
+        $block['subject'] = t('Cassowary User portfolio messages');
+        $block['content'] = cassowary_user_portfolio_messages();
+        break;
+    case 'cassowary_user_dashboard2':
+        $block['subject'] = t('Cassowary User dashboard 2');
+        $block['content'] = cassowary_user_dashboard2_content();
+        break;
+    case 'cassowary_saved_jobs':
+      $block['subject'] = t('Saved jobs');
+      $block['content'] = cassowary_saved_jobs();
+      break;
+    case 'cassowary_posted_jobs':
+      $block['subject'] = t('Posted jobs');
+      $block['content'] = cassowary_posted_jobs();
+      break;      
+  }
+
+  return $block;
+}
+
+/**
+ *
+ *
+ */
+
+function cassowary_saved_jobs() {
+
+  $content = '';
+  $query = db_select('node', 'n');
+  $content = drupal_get_form('cassowary_saved_jobs_form');
+  if(empty($content['nodes']['#options'])) {
+  	$content = '<div class="no-saved-jpbs">You have no saved jobs</div>';
+  }
+  $content = render($content);
+  return $content;
+}
+
+/**
+ * form for cassowary_saved_jobs()
+ */
+
+function cassowary_saved_jobs_form() {
+  global $user;
+  $form = array();
+
+  $form['submit'] = array('#type' => 'submit', '#value' => t('Delete'));
+
+  // Build the sortable table header.
+  $header = array(
+      'title' => array('data' => '',),
+      'operations' => array('data' => ''),
+  );
+
+  //Get the node data.
+  $query = db_select('node', 'n');
+    $query->extend('PagerDefault');
+    //$query->extend('TableSort');
+    $query->join('flagging', 'f', 'n.nid = f.entity_id');
+    $query->condition('n.type', 'job', '=');
+    $query->condition('n.status', '1', '=');
+    $query->condition('f.entity_type', 'node', '=');
+    $query->condition('f.uid', $user->uid, '=');
+    $query->condition('f.fid', '3', '=');
+    $query->fields('n', array('nid', 'title'));
+    $query->orderBy('f.timestamp', 'DESC');
+    $result = $query->execute()->fetchAll();
+
+  //Build the rows.
+  $options = array();
+  $destination = 'saved-jobs';
+
+
+  foreach ($result as $record) {
+    $link = rules_link_render('delete_job', $record->nid, $destination, $parameters = array());
+    $options[$record->nid] = array(
+        'title' => array(
+            'data' => array(
+                '#type' => 'link',
+                '#title' => $record->title,
+                '#href' => 'node/' . $record->nid,
+            ),
+        ),
+        'operations' => array(
+            'data' => array(
+                '#type' => 'link',
+                '#title' => t('delete'),
+                '#href' => $link['#href'],
+                '#options' => array(
+                  'query' => array(
+                    'destination' => $link['#options']['query'],
+                  ),
+                ),
+            ),
+        ),
+    );
+  }
+
+  $form['nodes'] = array(
+      '#type' => 'tableselect',
+      '#header' => $header,
+      '#options' => $options,
+      '#empty' => t('No saved jobs.'),
+  );
+  $form['pager'] = array('#markup' => theme('pager'));
+
+  return $form;
+}
+
+/**
+ * validate form for cassowary_saved_jobs()
+ */
+
+function cassowary_saved_jobs_form_validate(&$form, &$form_state) {
+  // Error if there are no items to select.
+  if (!is_array($form_state['values']['nodes']) || !count(array_filter($form_state['values']['nodes']))) {
+    form_set_error('', t('No items selected.'));
+  }
+}
+
+/**
+ * submit form for cassowary_saved_jobs()
+ */
+
+function cassowary_saved_jobs_form_submit(&$form, &$form_state) {
+  global $user;
+  $account = $user;
+  $nodes = array_filter($form_state['values']['nodes']);
+  foreach ($nodes as $node) {
+    flag('unflag', 'saved_jobs', $node, $account);
+  }
+  drupal_set_message(t('The selected jobs have been deleted'), 'status', FALSE);
+}
+
+/**
+ *
+ */
+
+function cassowary_user_dashboard_content() {
+  global $user;
+  $user = user_load($user->uid);
+  $name = $user->name;
+  if (isset($user->field_first_name['und'][0]['value'])) {
+    $name = $user->field_first_name['und'][0]['value'];
+    if (isset($user->field_last_name['und'][0]['value'])) {
+      $name .= ' ' . $user->field_last_name['und'][0]['value'];
+    }
+  }
+
+  $title = '';
+  $type = 'ul';
+  $attributes = array(
+      'id' => 'cassowary-user-dashboard',
+      'class' => 'cassowary-user-dashboard',
+  );
+
+  //$query = _privatemsg_assemble_query('list', $user, 'inbox');
+  //$amount = db_result(db_query($query['count']));
+  $query = cassowary_main_sql_unread_count($user);
+  $result = $query->execute();
+  $result = ($result->fetchAssoc());
+  
+  $amount = NULL;
+  if (isset($result['unread_count'])) {
+    $amount = '<span class="unread-messages">' . $result['unread_count'] . '</span>';
+  }
+
+
+  //$amount = db_result(db_query($query));
+  
+  if (in_array('writer', $user->roles)){
+    $children[] = array('data' => l($name, 'user/' . $user->uid . '/portfolio'), 'class' => array('user-child'=>'user-dashboard-child'),);
+  }  elseif(in_array('employer', $user->roles)){
+  	$children[] = array('data' => l($name, 'dashboard'), 'class' => array('user-child'=>'user-dashboard-child'),);	 
+  }
+  $children[] = array('data' => l(t('Dashboard'), 'dashboard'), 'class' => array('user-child'=>'user-dashboard-child'),);
+  //$children[] = array('data' => l(t('Messages !amount', array('!amount' => $amount)), 'messages', array('html' => TRUE)), 'class' => array('user-child'=>'user-dashboard-child'),);
+  $path = explode('/', drupal_get_path_alias($_GET['q']));
+  $real_path = explode('/', $_GET['q']);
+  if(($real_path[0] == 'messages_private') && isset($real_path[1])) {
+  	$children[] = array('data' => l(t('Messages !amount', array('!amount' => $amount)), 'messages_private', array('html' => TRUE)), 'class' => array('user-child'=>'user-dashboard-child'),);
+  } else {
+  	$children[] = array('data' => l(t('Messages !amount', array('!amount' => $amount)), 'messages_private', array('html' => TRUE)), 'class' => array('user-child'=>'user-dashboard-child'),);
+  }
+  if (in_array('employer', $user->roles)) $children[] = array('data' => l(t('Posted jobs'), 'posted_jobs'), 'class' => array('user-child'=>'posted-jobs'),);
+  	
+  
+  //$children[] = array('data' => l(t('Account Settings'), 'user/' . $user->uid . '/edit'), 'class' => array('user-child'=>'user-dashboard-child'),);
+  if (in_array('writer', $user->roles)) $children[] = array('data' => l(t('Billing Settings'), 'billing-plans'), 'class' => array('user-child'=>'user-dashboard-child'),);
+  if (in_array('writer', $user->roles)){
+    $items[] = array('data' => l($name, 'user/' . $user->uid . '/portfolio'), 'class' => array('user'=>'user-name'));
+  } elseif(in_array('employer', $user->roles)){
+  	$items[] = array('data' => l($name, 'dashboard'), 'class' => array('user'=>'user-name'));
+  }
+  $items[] = array('data' => '', 'class' => array('user'=>'user-dashboard'), 'children' => $children);
+  $items[] = array('data' => '', 'class' => array('user'=>'divider'),);
+  $items[] = array('data' => l(t('Logout'), 'user/logout'), 'class' => array('user'=>'user-logout'),);
+
+  $list = theme_item_list(array('items' => $items, 'title' => $title, 'type' => $type, 'attributes' => $attributes));
+
+  $content = $list;
+  return $content;
+}
+
+function cassowary_user_dashboard2_content() {
+
+	$content = render(drupal_get_form('cassowary_user_dashboard2_form'));
+	return $content;
+}
+
+function cassowary_user_dashboard2_form() {
+
+	global $user;
+	$user = user_load($user->uid);
+
+	$first_name = ''; $last_name = ''; $mail = '';
+	if (isset($user->field_first_name['und'][0]['value'])) {
+		$first_name = $user->field_first_name['und'][0]['value'];
+	}
+	if (isset($user->field_last_name['und'][0]['value'])) {
+		$last_name = $user->field_last_name['und'][0]['value'];
+	}
+	if (isset($user->mail)){
+		$mail = $user->mail;
+	}
+
+	//dsm($user);
+
+	$form['first_name'] = array(
+			'#type' => 'textfield',
+			'#title' => t('Name'),
+			'#default_value' => $first_name,
+			'#required' => TRUE,
+	);
+	/*$form['last_name'] = array(
+			'#type' => 'textfield',
+			'#title' => t('Last name'),
+			'#default_value' => $last_name,
+	);*/
+	$form['email'] = array(
+			'#type' => 'textfield',
+			'#title' => t('Email'),
+			'#default_value' => $mail,
+			'#required' => TRUE,
+	);
+	$form['confirm_email'] = array(
+			'#type' => 'textfield',
+			'#title' => t('Confirm Email'),
+			'#default_value' => $mail,
+			'#required' => TRUE,
+	);
+	$form['password'] = array(
+			'#type' => 'password',
+			'#title' => t('Password'),
+  			'#size' => 15,
+	);
+	$form['password'] = array(
+			'#type' => 'password_confirm',
+  			'#size' => 15,
+	);
+	$form['submit'] = array(
+			'#type' => 'submit',
+			'#value' => 'Save',
+	);
+	return $form;
+}
+
+function cassowary_user_dashboard2_form_submit($form, &$form_state) {
+	global $user;
+	$user_prof = user_load($user->uid);
+	//$pass = user_password();
+	//dsm($pass);
+	//dsm($form_state['input']['password']);
+	$edit = array(
+			'pass' => $form_state['input']['password']['pass1'],
+			'field_first_name' => array(
+					'und' => array(
+							0 => array(
+									'value' => $form_state['input']['first_name'],
+									'format' => NULL,
+									'safe_value' => $form_state['input']['first_name'],
+
+							),
+					),
+			),
+
+			'mail' => $form_state['input']['email'],
+
+
+
+	);
+	//dsm($user_prof);dsm($form_state);dsm($form);
+	//dpr($form_state);dpr($form);
+	/*$user_prof->field_website['und'][0]['url'] = $form['website']['#value'];
+	 $user_prof->field_website['und'][0]['title'] = $form['website']['#value'];*/
+
+	user_save($user_prof, $edit);
+
+}
+
+function cassowary_user_dashboard2_form_validate($form, &$form_state){
+	//dsm($form);dsm($form_state);confirm_email
+	$mail = $form_state['input']['email']; $confirm_mail = $form_state['input']['confirm_email'];
+	if (!valid_email_address($mail)) {
+		form_set_error('email', t('The e-mail address %mail is not valid.', array('%mail' => $mail)));
+	}
+	if ($mail != $confirm_mail) {
+		form_set_error('confirm_email', t('The confirm e-mail don\'t match with e-mail'));
+	}
+}
+
+/**
+ *
+ */
+
+function cassowary_user_tabs_content() {
+  global $user;
+  $content = '';
+  $user = user_load($user->uid);
+
+  //$title = t('Dashboard');
+  $title = t('');
+  
+  $type = 'ul';
+  $attributes = array(
+      'id' => 'cassowary-user-tabs',
+      'class' => 'cassowary-user-tabs',
+  );
+
+  $query = cassowary_main_sql_unread_count($user);
+  $result = $query->execute();
+  $result = ($result->fetchAssoc());
+  $amount = NULL;
+  if (isset($result['unread_count'])) {
+    $amount = '<span class="unread-messages">' . $result['unread_count'] . '</span>';
+  }
+
+  $items[] = array('data' => l(t('Account'), 'dashboard'), 'class' => array('user'=>'user-account'),);
+  if (in_array('writer', $user->roles)) $items[] = array('data' => l(t('Billing'), 'billing-plans'), 'class' => array('user'=>'user-billing'),);
+  $path = explode('/', drupal_get_path_alias($_GET['q']));
+  $real_path = explode('/', $_GET['q']);
+  if(($real_path[0] == 'messages_private') && isset($real_path[1])) {
+ 	$items[] = array('data' => l(t('Messages !amount', array('!amount' => $amount)), 'messages_private', array('html' => TRUE, 'attributes' => array('class' => 'active2'))), 'class' => array('user-child'=>'user-dashboard-child'),);
+   } else {
+  	$items[] = array('data' => l(t('Messages !amount', array('!amount' => $amount)), 'messages_private', array('html' => TRUE)), 'class' => array('user-child'=>'user-dashboard-child'),);
+  	 
+  }
+  
+  //$items[] = array('data' => l(t('Messages !amount', array('!amount' => $amount)), 'messages', array('html' => TRUE)), 'class' => array('user'=>'user-messages'),);
+  if (in_array('writer', $user->roles)) $items[] = array('data' => l(t('Saved jobs'), 'saved-jobs'), 'class' => array('user'=>'saved-jobs'),);
+  if (in_array('writer', $user->roles)) $items[] = array('data' => l(t('Saved Searches'), 'saved-searches'), 'class' => array('user'=>'user-searches'),);
+  if (in_array('writer', $user->roles)) $items[] = array('data' => l(t('Notifications'), 'notifications'), 'class' => array('user'=>'user-notifications'),);
+  if (in_array('employer', $user->roles)) $items[] = array('data' => l(t('Posted jobs'), 'posted_jobs'), 'class' => array('user'=>'posted-jobs'),);
+  $list = theme_item_list(array('items' => $items, 'title' => $title, 'type' => $type, 'attributes' => $attributes));
+
+  $content = $list;
+
+  return $content;
+}
+
+function cassowary_writer_add_content() {
+
+  global $user;
+  $title = '';
+  $type = 'ul';
+  $attributes = array(
+      'id' => 'cassowary-writer-add',
+      'class' => 'cassowary-writer-add',
+  );
+
+  $query = db_select('node_type', 'nt');
+  $query
+  ->fields('nt', array('name', 'type'));
+  $result = $query->execute();
+  foreach ($result as $row) {
+    if(node_access("create", $row->type, $user) == TRUE){
+      $children[] = array('data' => l(t('New !type', array('!type' =>$row->name)), 'node/add/' . str_replace('_', '-', $row->type)), 'class' => array('child'=>'writer-add-child ' . $row->type),);
+    }
+  }
+  $items[] = array('data' => l('add', 'node/add/'), 'class' => array('writer-add'=>'writer-add-main'), 'children' => $children);
+  $list = theme_item_list(array('items' => $items, 'title' => $title, 'type' => $type, 'attributes' => $attributes));
+  $content = $list;
+  return $content;
+
+}
+
+function cassowary_social_links_content($user_prof = NULL) {
+  global $user;
+  // Include the CTools tools that we need.
+  ctools_include('ajax');
+  ctools_include('modal');
+
+  // Add CTools' javascript to the page.
+  ctools_modal_add_js();
+
+  // Create our own javascript that will be used to theme a modal.
+  $sample_style = array(
+      'ctools-sample-style' => array(
+          'modalSize' => array(
+              'type' => 'fixed',
+              'width' => 603,
+              'height' => 493,
+              'addWidth' => 20,
+              'addHeight' => 15,
+          ),
+          'modalOptions' => array(
+              'opacity' => .5,
+              'background-color' => '#000',
+          ),
+          'animation' => 'fadeIn',
+          'modalTheme' => 'CToolsSampleModal',
+          'throbber' => theme('image', array('path' => ctools_image_path('ajax-loader.gif', 'ctools_ajax_sample'), 'alt' => t('Loading...'), 'title' => t('Loading'))),
+      ),
+  );
+
+  drupal_add_js($sample_style, 'setting');
+
+  // Since we have our js, css and images in well-known named directories,
+  // CTools makes it easy for us to just use them without worrying about
+  // using drupal_get_path() and all that ugliness.
+  ctools_add_js('ctools-ajax-sample', 'ctools_ajax_sample');
+  ctools_add_css('ctools-ajax-sample', 'ctools_ajax_sample');
+
+  // Create a list of clickable links.
+  $links = array();
+
+  if(!$user_prof) {
+    $user_prof = user_load(arg(1));
+  }
+
+  //$user_prof = user_load($user->uid);
+  //dsm($user_prof->field_website);
+  if(isset($user_prof->field_website['und'][0]['url']) && !empty($user_prof->field_website['und'][0]['url'])){
+    //http://
+    if(mb_substr_count($user_prof->field_website['und'][0]['url'],"http://","utf-8") != 0){
+      $links[] = array('data' => l('Website',$user_prof->field_website['und'][0]['url'], array('external' => TRUE,)), 'class' => array('website'=>'website'));
+    } else {
+      $links[] = array('data' => l('Website', 'http://' . $user_prof->field_website['und'][0]['url'], array('external' => TRUE,)), 'class' => array('website'=>'website'));
+    }
+  } else {
+      $links[] = array('data' => 'website', 'class' => array('website'=>'website empty'));
+  }
+
+  if(isset($user_prof->field_linkedln['und'][0]['url']) && !empty($user_prof->field_linkedln['und'][0]['url'])){
+    if(mb_substr_count($user_prof->field_linkedln['und'][0]['url'],"http://","utf-8") != 0){
+      $links[] = array('data' => l('Linkedln',$user_prof->field_linkedln['und'][0]['url'], array('external' => TRUE,)), 'class' => array('linkedln'=>'linkedln'));
+    } else {
+      $links[] = array('data' => l('Linkedln', 'http://' . $user_prof->field_linkedln['und'][0]['url'], array('external' => TRUE,)), 'class' => array('linkedln'=>'linkedln'));
+    }
+
+  } else {
+      $links[] = array('data' => 'linkedln', 'class' => array('linkedln'=>'linkedln empty'));
+  }
+
+  if(isset($user_prof->field_facebook['und'][0]['url']) && !empty($user_prof->field_facebook['und'][0]['url'])){
+    if(mb_substr_count($user_prof->field_facebook['und'][0]['url'],"http://","utf-8") != 0){
+      $links[] = array('data' => l('Facebook',$user_prof->field_facebook['und'][0]['url'], array('external' => TRUE,)), 'class' => array('facebook'=>'facebook'));
+    } else {
+      $links[] = array('data' => l('Facebook', 'http://' . $user_prof->field_facebook['und'][0]['url'], array('external' => TRUE,)), 'class' => array('facebook'=>'facebook'));
+
+    }
+  } else {
+      $links[] = array('data' => 'facebook', 'class' => array('facebook'=>'facebook empty'));
+  }
+
+  if(isset($user_prof->field_twitter['und'][0]['url']) && !empty($user_prof->field_twitter['und'][0]['url'])){
+    if(mb_substr_count($user_prof->field_twitter['und'][0]['url'],"http://","utf-8") != 0){
+      $links[] = array('data' => l('Twitter',$user_prof->field_twitter['und'][0]['url'], array('external' => TRUE,)), 'class' => array('twitter'=>'twitter'));
+    } else {
+      $links[] = array('data' => l('Twitter', 'http://' . $user_prof->field_twitter['und'][0]['url'], array('external' => TRUE,)), 'class' => array('twitter'=>'twitter'));
+
+    }
+  } else {
+      $links[] = array('data' => 'twitter', 'class' => array('twitter'=>'twitter empty'));
+  }
+
+  //$children[] = array('data' => l(t('New !type', array('!type' =>$row->name)), 'node/add/' . $row->type), 'class' => array('child'=>'writer-add-child ' . $row->type),);
+  if(user_edit_access($user_prof)){
+    $links[] = ctools_modal_text_button(t('Edit'), 'social_links/nojs/edit', t('Edit social links'), 'ctools-modal-ctools-sample-style');
+  }
+  //$classes = array('website', 'website');
+  $output = theme('item_list', array('items' => $links, 'title' => ''));
+
+  $wrapper = array(
+      '#type' => 'container',
+      '#attributes' => array(
+          'class' => array('social-links'),
+      ),
+  );
+  $wrapper['social-links'] = array(
+      '#type' => 'markup',
+      '#markup' => $output,
+  );
+
+  //$output .= theme('item_list', array('items' => $links2, 'title' => ''));
+  return render($wrapper);
+}
+
+function cassowary_social_links_content_view() {
+  global $user;
+
+  // Create a list of clickable links.
+  $links = array();
+
+
+
+  $user_prof = user_load(arg(1));
+  //$user_prof = user_load($user->uid);
+  //dsm($user_prof->field_website);
+  if(isset($user_prof->field_website['und'][0]['url']) && !empty($user_prof->field_website['und'][0]['url'])){
+    //http://
+    if(mb_substr_count($user_prof->field_website['und'][0]['url'],"http://","utf-8") != 0){
+      $links[] = array('data' => l('Website',$user_prof->field_website['und'][0]['url'], array('external' => TRUE,)), 'class' => array('website'=>'website'));
+    } else {
+      $links[] = array('data' => l('Website', 'http://' . $user_prof->field_website['und'][0]['url'], array('external' => TRUE,)), 'class' => array('website'=>'website'));
+
+    }
+  } else {
+      $links[] = array('data' => 'website', 'class' => array('website'=>'website empty'));
+  }
+  
+  if(isset($user_prof->field_linkedln['und'][0]['url']) && !empty($user_prof->field_linkedln['und'][0]['url'])){
+    if(mb_substr_count($user_prof->field_linkedln['und'][0]['url'],"http://","utf-8") != 0){
+      $links[] = array('data' => l('Linkedln',$user_prof->field_linkedln['und'][0]['url'], array('external' => TRUE,)), 'class' => array('linkedln'=>'linkedln'));
+    } else {
+      $links[] = array('data' => l('Linkedln', 'http://' . $user_prof->field_linkedln['und'][0]['url'], array('external' => TRUE,)), 'class' => array('linkedln'=>'linkedln'));
+
+    }
+
+  } else {
+  	$links[] = array('data' => 'linkedln', 'class' => array('linkedln'=>'linkedln empty'));
+  }
+  
+  if(isset($user_prof->field_facebook['und'][0]['url']) && !empty($user_prof->field_facebook['und'][0]['url'])){
+    if(mb_substr_count($user_prof->field_facebook['und'][0]['url'],"http://","utf-8") != 0){
+      $links[] = array('data' => l('Facebook',$user_prof->field_facebook['und'][0]['url'], array('external' => TRUE,)), 'class' => array('facebook'=>'facebook'));
+    } else {
+      $links[] = array('data' => l('Facebook', 'http://' . $user_prof->field_facebook['und'][0]['url'], array('external' => TRUE,)), 'class' => array('facebook'=>'facebook'));
+
+    }
+  } else {
+  	$links[] = array('data' => 'facebook', 'class' => array('facebook'=>'facebook empty'));
+  }
+ 
+  if(isset($user_prof->field_twitter['und'][0]['url']) && !empty($user_prof->field_twitter['und'][0]['url'])){
+    if(mb_substr_count($user_prof->field_twitter['und'][0]['url'],"http://","utf-8") != 0){
+      $links[] = array('data' => l('Twitter',$user_prof->field_twitter['und'][0]['url'], array('external' => TRUE,)), 'class' => array('twitter'=>'twitter'));
+    } else {
+      $links[] = array('data' => l('Twitter', 'http://' . $user_prof->field_twitter['und'][0]['url'], array('external' => TRUE,)), 'class' => array('twitter'=>'twitter'));
+
+    }
+  } else {
+  	$links[] = array('data' => 'twitter', 'class' => array('twitter'=>'twitter empty'));
+  }
+  //$children[] = array('data' => l(t('New !type', array('!type' =>$row->name)), 'node/add/' . $row->type), 'class' => array('child'=>'writer-add-child ' . $row->type),);
+  //$classes = array('website', 'website');
+  $output = theme('item_list', array('items' => $links, 'title' => ''));
+
+  $wrapper = array(
+      '#type' => 'container',
+      '#attributes' => array(
+          'class' => array('social-links'),
+      ),
+  );
+  $wrapper['social-links'] = array(
+      '#type' => 'markup',
+      '#markup' => $output,
+  );
+
+  //$output .= theme('item_list', array('items' => $links2, 'title' => ''));
+  return render($wrapper);
+}
+
+
+
+function cassowary_social_links_form($form, &$form_state){
+  global $user;
+  $user_prof = user_load($user->uid);
+  //$user_prof = user_load(arg(1));
+  //dpm($user_prof);
+  //dsm($user_prof->field_website['und'][0]['url']);
+  $form['website'] = array(
+      '#type' => 'textfield',
+      '#title' => t('Your website'),
+      '#value' => $user_prof->field_website['und'][0]['url'],
+  	  '#placeholder' => t('http://www.yourwebsite.com'),
+      //'#required' => TRUE,
+      //'#element_validate' => array('website_checked'),
+  );
+  $form['linkedln'] = array(
+      '#type' => 'textfield',
+      '#title' => t('Your Linkedln Profile'),
+      '#value' => $user_prof->field_linkedln['und'][0]['url'],
+  	  '#placeholder' => t('http://www.linkedin.com/yourprofile'),
+  );
+  $form['facebook'] = array(
+      '#type' => 'textfield',
+      '#title' => t('Your Facebook Profile'),
+      '#value' => $user_prof->field_facebook['und'][0]['url'],
+  	  '#placeholder' => t('http://www.facebook.com/yourprofile'),
+  );
+  $form['twitter'] = array(
+      '#type' => 'textfield',
+      '#title' => t('Your Twitter Profile'),
+      '#value' => $user_prof->field_twitter['und'][0]['url'],
+  	  '#placeholder' => t('http://www.twitter.com/yourprofile'),
+  );
+  $form['submit'] = array(
+      '#type' => 'submit',
+      '#value' => 'Save',
+  );
+  return $form;
+}
+
+function cassowary_social_links_form_submit($form, &$form_state){
+  global $user;
+  $user_prof = user_load($user->uid);
+  //$user_prof = user_load(arg(1));
+
+  $edit = array(
+      'field_website' => array(
+          'und' => array(
+              0 => array(
+                  'url' => $form_state['input']['website'],
+                  'title' => $form_state['input']['website'],
+                  'attributes' => array(),
+
+              ),
+          ),
+      ),
+
+      'field_linkedln' => array(
+          'und' => array(
+              0 => array(
+                  'url' => $form_state['input']['linkedln'],
+                  'title' => $form_state['input']['linkedln'],
+                  'attributes' => array(),
+
+              ),
+          ),
+      ),
+
+      'field_facebook' => array(
+          'und' => array(
+              0 => array(
+                  'url' => $form_state['input']['facebook'],
+                  'title' => $form_state['input']['facebook'],
+                  'attributes' => array(),
+
+              ),
+          ),
+      ),
+
+      'field_twitter' => array(
+          'und' => array(
+              0 => array(
+                  'url' => $form_state['input']['twitter'],
+                  'title' => $form_state['input']['twitter'],
+                  'attributes' => array(),
+
+              ),
+          ),
+      ),
+
+  );
+  //dsm($user_prof);dsm($form_state);dsm($form);
+  //dpr($form_state);dpr($form);
+  /*$user_prof->field_website['und'][0]['url'] = $form['website']['#value'];
+  $user_prof->field_website['und'][0]['title'] = $form['website']['#value'];*/
+
+  user_save($user_prof, $edit);
+
+  $html = cassowary_social_links_content($user_prof);
+  $selector = '.pane-cassowary-main-cassowary-social-links .social-links';
+  $commands[] = ctools_modal_command_dismiss();
+  $commands[] = ajax_command_invoke($selector, 'hide');
+  $commands[] = ajax_command_html($selector, $html);
+  $commands[] = ajax_command_invoke($selector, 'fadeIn', array('slow'));
+  print ajax_render($commands);
+  exit;
+}
+
+function cassowary_social_links_edit($js = NULL){
+
+  $output = '';
+  if ($js) {
+    ctools_include('modal');
+    ctools_include('ajax');
+  } else {
+    $output .= 'Enable JavaScripts';
+    $specialform = render(drupal_get_form('cassowary_social_links_form'));
+    //dpm(drupal_render(field_view_field('user', $user, 'website')));
+    //$user = user_load(arg(1));
+
+    //dpm($user);//->field_website['und'][0]['url']);
+    //$job_string['price'] = drupal_render(field_view_field('node', $node, 'field_price'));
+    //render(field_view_field( 'profile2' , $profile [ 'profile-name' ] , 'field_name',  array('label'=>'inline')) ) ;
+    $output .= $specialform;
+    return $output;
+  }
+
+  $form_state = array('ajax' => TRUE);
+  $form_state['title'] = t('Add sites');
+  $commands = ctools_modal_form_wrapper('cassowary_social_links_form', $form_state);
+  //return array('#type' => 'ajax', '#commands' => $commands);
+  print ajax_render($commands);
+  exit;
+}
+
+function cassowary_social_links_form_validate($form, &$form_state){
+  //dsm($form);dsm($form_state);
+    $website = $form_state['input']['website'];
+    if ((link_validate_url($website) == FALSE) && (!empty($website))) {
+      form_set_error('website', t('Enter your website no valid URL.'));
+    }
+    $linkedln = $form_state['input']['linkedln'];
+    if (((link_validate_url($linkedln) == FALSE) && (!empty($linkedln))) || ((mb_substr_count($linkedln,"linkedin.com","utf-8") == 0) && (!empty($linkedln)))) {
+      form_set_error('linkedln', t('Enter your linkedln no valid URL.'));
+    }
+    $facebook = $form_state['input']['facebook'];
+    if (((link_validate_url($facebook) == FALSE) && (!empty($facebook))) || ((mb_substr_count($facebook,"facebook.com","utf-8") == 0) && (!empty($facebook)))) {
+      form_set_error('facebook', t('Enter your facebook no valid URL.'));
+    }
+    $twitter = $form_state['input']['twitter'];
+    if (((link_validate_url($twitter) == FALSE) && (!empty($twitter))) || ((mb_substr_count($twitter,"twitter.com","utf-8")  == 0) && (!empty($twitter)))) {
+      form_set_error('twitter', t('Enter your twitter no valid URL.'));
+    }
+
+}
+
+/*function website_checked($element, &$form_state, $form){
+  $website = $form_state['input']['website'];
+  if ((link_validate_url($website) == FALSE) && (!empty($website))) {
+    form_set_error('website', t('Enter your website no valid URL.'));
+  }
+}*/
+
+/*function website_validate($element, &$form_state, $form) {
+  if (empty($element['#value'])) {
+    form_error($element, t('This field is required.'));
+  }
+}*/
+
+function cassowary_user_portfolio_messages($user_prof = NULL) {
+  global $user;
+  if(!$user_prof) {
+    $user_prof = user_load(arg(1));
+  }
+  if(!isset($_SESSION['first_login'])) {
+    $_SESSION['first_login'] = $first_login =  1;
+  }
+  else {
+    $first_login =  0;
+  }
+  $i = 0; $fill = ''; $flag = 0;
+  if($user_prof->field_first_name){
+     $i++;
+  } else {
+    $flag = 1;
+    $fill .= 'Name';
+  }
+  if($user_prof->field_specialization || in_array('employer', $user_prof->roles)){
+    $i++;
+  } else {
+    if($flag > 0){$fill .= ', ';}
+    $fill .= 'Job Title';
+    $flag = 1;
+  }
+  if($user_prof->field_bio){
+    $i++;
+  } else {
+    if($flag > 0){$fill .= ', ';}
+    $fill .= 'Bio';
+    $flag = 1;
+  }
+  if($user_prof->field_location['und'][0]['gnciid']){
+    $i++;
+  } else {
+    if($flag > 0){$fill .= ', ';}
+    $fill .= 'Location';
+    $flag = 1;
+  }
+
+  if($user_prof->field_avatar){
+    $i++;
+  } else {
+    if($flag > 0){$fill .= ', ';}
+    $fill .= 'Photo';
+    $flag = 1;
+  }
+
+  if(isset($user_prof->field_website['und'][0]['url']) || isset($user_prof->field_linkedln['und'][0]['url']) || isset($user_prof->field_facebook['und'][0]['url']) || isset($user_prof->field_twitter['und'][0]['url'])){
+    $i++;
+  } else {
+    if($flag > 0){$fill .= ', ';}
+    $fill .= 'Websites';
+    $flag = 1;
+  }
+
+  $query = db_select('node', 'n');
+  $query
+  ->fields('n', array('nid', 'created', 'uid'))
+  ->condition('n.uid', arg(1) , '=');
+  $count = $query->countQuery()->execute()->fetchField();
+
+  if($count > 0){
+   $i++;
+  } else {
+    if($flag > 0){$fill .= ', ';}
+    $fill .= 'Work ';
+  }
+  $procent =  round((100*$i) / 7);
+  //dsm($count);
+
+  $content = '';
+  if($i == 0 || $first_login == 1){
+    $content = '<span class="status-portfolio"><span class="green">' . t('Welcome!') . '</span> ' .t('Complete your portfolio by adding your personal details and featured works.');
+  } else {
+    $content = '<span class="status-portfolio">'. t('Your portfolio is ') . '<span class="green">' . $procent . '% ' . t('complete!') . '</span>';
+    if ($i == 7){
+      $content = '<span class="status-portfolio">That is all right';
+    } else {
+      $content .= ' ' . t('Please add:') . ' ' . '<span class="green">' . $fill .'</span>';
+    }
+  }
+  $content .= '</span>';
+  return $content;
+}
+
+function cassowary_portfolio_messages($user) {
+  $content = cassowary_user_portfolio_messages($user);
+  print $content;
+  exit;
+}
+
+/**
+ *
+ */
+
+function cassowary_notifications_access($account = NULL) {
+  if(!$account) {
+    global $user;
+    $account = $user;
+  }
+
+  if($account->uid) {
+    return TRUE;
+  }
+
+  return FALSE;
+
+}
+
+/**
+ *
+ */
+
+function cassowary_notifications_form() {
+  global $user;
+  
+  $jobs = variable_get('cassowary_job_workflow_node', array());
+  /*dpm($jobs);*/
+  $form['email_me_message'] = array(
+	'#markup' => '<div class="email-me">' . t('Email me:') . '</div>',
+  );
+  
+  $form['email_receive_message'] = array(
+      '#type' => 'checkbox',
+      '#title' => t('When I receive a message'),
+      '#default_value' => _pm_email_notify_is_enabled($user->uid),
+  );
+
+  $form['email_job_search_match'] = array(
+      '#type' => 'checkbox',
+      '#title' => t('When a new job listing matches my Saved Searches'),
+      '#default_value' => _cassowary_job_search_match_is_enabled($user->uid),
+  );
+  $form['submit'] = array(
+      '#type' => 'submit',
+      '#value' => 'Save',
+  );
+  return $form;
+}
+
+function cassowary_notifications_form_submit(&$form, &$form_state) {
+  global $user;
+  $account = $user;
+  if (isset($form_state['values']['email_receive_message']) && privatemsg_user_access('read privatemsg', $account)) {
+    db_merge('pm_email_notify')
+    ->fields(array('email_notify_is_enabled' => $form_state['values']['email_receive_message']))
+    ->key(array('user_id' => $account->uid))
+    ->execute();
+  }
+  if (isset($form_state['values']['email_job_search_match'])) {
+    db_merge('cassowary_job_search_match')
+    ->fields(array('cassowary_job_search_match_is_enabled' => $form_state['values']['email_job_search_match']))
+    ->key(array('user_id' => $account->uid))
+    ->execute();
+  }
+  drupal_set_message('Your settings have been saved successfully.', 'status');
+}
+
+/**
+ * Retrieve notification search setting of a user.
+ *
+ * This function retrieves user's search match notification preference from database,
+ * if user preference doesn't exist - it uses default value instead
+ *
+ * @param $uid
+ *   User uid
+ */
+function _cassowary_job_search_match_is_enabled($uid) {
+  $notifications = &drupal_static(__FUNCTION__, array());
+  // Cache the result set in case this method is executed in batched operation which will perform many unnecessary repeated selects for the same user
+  if (!isset($notifications[$uid]) ) {
+    $mail_notification = db_query('SELECT cassowary_job_search_match_is_enabled FROM {cassowary_job_search_match} WHERE user_id = :uid', array(':uid' => $uid))->fetchField();
+    if ($mail_notification === FALSE) { //db_result returns FALSE if result was not found.
+      $mail_notification = FALSE;
+    }
+    $notifications[$uid] = $mail_notification;
+  }
+  return $notifications[$uid];
+}
+
+/**
+ * Count unread messages.
+ *
+ * @param $account
+ *   User account for which should be checked.
+ *
+ */
+function cassowary_main_sql_unread_count($account) {
+  $query = db_select('pm_index', 'pmi');
+  $query->addExpression('COUNT(thread_id)', 'unread_count');
+  return $query
+  ->condition('pmi.deleted', 0)
+  ->condition('pmi.is_new', 1)
+  ->condition('pmi.recipient', $account->uid)
+  ->condition('pmi.type', array('hidden', 'user'));
+}
+
+
+function cassowary_posted_jobs() {	
+  global $user;
+  $user_prof = $user;	
+  $content = '';
+  $form = drupal_get_form('cassowary_posted_jobs_form',$user_prof);
+  if(isset($form['posted_jobs'])) {
+  	$content .= render($form);  	
+  } else {
+  	$content .= '<div class="empty">You have no posted jobs</div>';
+  	$content .= l('Post new job', 'add/content/job');
+  }
+  
+  return $content;
+}
+
+function cassowary_posted_jobs_form($form, &$form_state, $author){
+	$form['delete'] = array(
+			'#type' => 'submit',
+			'#value' => 'Delete',
+	);
+	$delete = array(
+			'#type' => 'submit',
+			'#value' => 'Delete',
+	);
+	$enter_what = array();
+	
+	$enter_what['options'] = array();
+	
+	// Build the sortable table header.
+	$enter_what['header'] = array(
+			//'delete' => array('data' => '<div class="delete">Delete</div>'),
+			'delete' => array('data' => $delete),
+	);
+
+	$i = 0;
+	$result = db_select('node', 'n')
+	->fields('n',array('nid'))
+	->condition('uid', $author->uid,'=')
+	->condition('type', 'job','=')
+	->condition('status', 1,'=')
+	->execute();
+	//->fetchAssoc();
+	
+	foreach ($result as $element) {
+		$info = '';
+		$node_prof = node_load($element->nid);
+		$node_view = node_view($node_prof);
+		$info = '<div class="posted-jobs-item-1"><div class="title">' . l($node_prof->title, 'node/' . $node_prof->nid) . '</div>';
+
+		if(isset($node_view['field_price'])){ 	
+		  $info .= '<div class="price">' . l('[' . $node_view['field_price'][0]['#markup'] . ']', 'node/' . $node_prof->nid) . '</div>';
+		}	
+		if(isset($node_prof->created)){
+			$info .= '<div class="time">' . format_date($node_prof->created, 'custom', 'H:ia') . '</div>';
+			$info .= '<div class="date">' . format_date($node_prof->created, 'custom', 'F d, Y') . '</div>';
+		}		
+		$info .= '</div>';
+		
+		$info .= '<div class="posted-jobs-item-2">';
+		if(isset($node_view['field_company'])){			
+		  $info .= render($node_view['field_company']);
+		}			
+		
+		if(isset($node_view['field_location']) && $node_view['field_location'][0]['#markup'] != '<p>Your location</p>'){
+			$info .= render($node_view['field_location']);
+		}	
+		$info .= '</div>';
+		if(isset($node_view['field_description'])){
+			$info .= render($node_view['field_description']);
+		}	
+		$info .= l('Edit', 'node/' . $element->nid . '/edit');
+		$enter_what['options'][$element->nid] = array(
+				'delete' => array(
+						'data' => array(
+								'#markup' => t($info),
+	
+								//'#type' => 'link',
+								//'#title' => t($what),
+								//'#href' =>  '',
+								//'#query' => $destination,
+						),
+				),
+		);
+		$enter_what['def_true'][$element->nid] = FALSE;
+		
+		
+		
+	}	
+	if(isset($enter_what['def_true'])){
+		$form['posted_jobs'] = array(
+				'#type' => 'tableselect',
+				'#title' => t('Posted jobs'),
+				'#header' => $enter_what['header'],
+				'#options' => $enter_what['options'],
+				'#default_value' => $enter_what['def_true'],
+				'#attributes' => array(
+						'class' => array(
+								'tableheader-processed'
+						),
+				),				
+				//'#empty' => t('No saved searches.'),
+		);	
+	}
+
+	return $form;
+}
+
+function cassowary_posted_jobs_form_submit($form, &$form_state){
+  foreach ($form_state['values']['posted_jobs'] as $next){
+  	if($next<>0){
+  		$query_delete = db_update('node')
+  		->fields(array('status' => 0,))
+  		->condition('nid', $next, '=')
+  		->execute(); 		
+  	}
+  }
+}

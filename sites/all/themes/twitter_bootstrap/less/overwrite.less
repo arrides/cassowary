@@ -1,0 +1,281 @@
+
+
+
+/* Home Page
+---------------------------------*/
+//Header
+header {
+    .nav {
+        float: right;
+        margin: 10px 0;
+    }
+    .panels-flexible-region-two_columns_flex-left {
+        width: 100%;
+    }
+    .pane-header-user-info {
+        position: absolute;
+        right: 0;
+
+        a {
+            margin: 0 14px;
+        }
+    }
+    .view-header-user-info {
+        text-align: right;
+        margin-top: 26px;
+    }
+    .panel-separator {
+        display: none;
+    }
+
+    .pane-cassowary-search-cassowarysearch {
+        //overflow: hidden;
+        .clearfix();
+
+        fieldset,
+        .control-group {
+            margin-bottom: 0;
+        }
+
+        fieldset {
+
+            legend {
+                display: none;
+            }
+            .form-item-what {
+                //margin: 0 10px 0 0 !important;
+
+                label {
+                    font-size: 24px;
+                    font-weight: normal;
+                    line-height: 30px;
+                    //padding: 21px 0 7px 0;
+                    padding: 0;
+                }
+            }
+        }
+        form {
+            margin: 0;
+        }
+        input[type="text"] {
+            border: 0 none;
+            padding: 15px 16px;
+            width: 358px;
+        }
+        .btn {
+            .btn-green();
+            padding: 15px 27px;
+            font-size: 21px;
+            .border-radius(4px);
+            border: 0 none;
+            text-shadow: 0 -1px 1px black;
+            //margin-top: 63px;
+            margin-top: 35px;
+        }
+        fieldset, .btn {
+            float: left;
+        }
+        .form-item-method {
+            & > label.control-label {
+                display: none;
+            }
+        }
+        .form-type-textfield,
+        .form-type-radios {
+            float: none !important;
+            .clearfix();
+        }
+        .form-type-radio,
+        .form-type-radio label {
+            margin-bottom: 0;
+            .option.radio {
+                padding-top: 12px;
+            }
+        }
+        .form-type-radio {
+            float: left;
+        }
+    }
+    .panels-flexible-region-last {
+        text-align: right;
+        margin-top: 20px;
+    }
+}
+
+
+/* Page Content */
+.breadcrumb {
+    background: transparent;
+    padding: 8px 0;
+    margin: 0 0 20px;
+    .border-radius(0);
+
+    .divider {
+        color: @linkColor;
+    }
+}
+
+.pane-greate-writers {
+    h2 {
+        font-size: 24px;
+        line-height: 30px;
+        margin-bottom: 20px;
+    }
+}
+.panels-flexible-region-front_page_authenticated-bottom_mid,
+.panels-flexible-region-front_page_anonimous-bottom_mid {
+    width: 100%;
+}
+.view-greate-writers {
+    margin-left: -39px;
+    //padding-bottom: 60px;
+
+    .table th, .table td {
+        padding: 0;
+        line-height: 100%;
+        text-align: left;
+        vertical-align: top;
+        border-top: 0 none;
+    }
+    .views-field-field-avatar {
+        padding: 0px;
+        margin-bottom: 12px;
+
+        a {
+            display: block;
+            height: 160px;
+            width: 160px;
+        }
+    }
+    .field-content {
+        color: black;
+        font-family: @CaslonFontFamily;
+        font-size: 18px;
+        line-height: 24px;
+        margin: 0;
+        margin-left: 39px;
+    }
+}
+
+.home-writers,
+.home-employers {
+    .home-middle-description {
+        margin-left: 190px;
+    }
+    h2 {
+        line-height: 40px !important;
+    }
+    p {
+        font-size: 24px;
+        line-height: 30px;
+        margin-bottom: 12px;
+        font-weight: normal;
+        &:last-child {
+            margin-bottom: 0;
+        }
+    }
+}
+.home-writers  {
+    img {
+        margin: 22px 0 0 6px;
+    }
+}
+.home-employers  {
+    img {
+        margin: 6px 0 0 27px;
+    }
+}
+.node-form > div {
+    display: block;
+    background: white;
+    padding: 20px;
+    border: 1px solid #CCC;
+    border-radius: 5px;
+}
+.node-form {
+    .edit-node {
+        .btn();
+        .btn-primary();
+    }
+}
+
+// Hired Process
+.views-field-apply-for-a-job-emulate,
+.views-field-sign-up-to-the-job {
+    a {
+      .btn();
+      .btn-primary();
+    }
+    a + a {
+      margin-left: 20px;
+    }
+}
+
+.pane-applied-jobs,
+.pane-signed-writers {
+  background: @white;
+  .box-shadow(0px 0px 5px rgba(50, 50, 50, 0.5));
+  .border-radius(5px);
+  color: @black;
+  padding: 20px;
+  &, h2 {
+    font-family: @helvetica;
+  }
+
+  .view-applied-jobs a,
+  .view-signed-writers a {
+    &:before {
+      content: "-  ";
+    }
+  }
+  ul {
+    list-style: none;
+    margin: 0;
+  }
+}
+
+
+
+// Thank You page
+.page-applied,
+.page-payment-processed {
+
+
+  .page-header {
+      color: #669933;
+      padding-bottom: 0px;
+      margin: 0 0 20px;
+      font-family: @helvetica;
+      font-size: 22px;
+      font-weight: bold;
+      line-height: 24px;
+  }
+  .content {
+      background: url('../img/cassowary-logo-large.png') no-repeat center 40px;
+      min-height: 340px;
+  }
+  .applied-job,
+  .content {
+      font-family: @helvetica;
+
+      p {
+          color: #000;
+          font-size: 16px;
+          line-height: 24px;
+          margin: 0 0 20px 0;
+
+          a {
+              font-weight: normal;
+              text-decoration: underline;
+
+              &:hover {
+                  text-decoration: none;
+              }
+          }
+      }
+      p:last-child {
+          font-size: 14px;
+      }
+  }
+}
+

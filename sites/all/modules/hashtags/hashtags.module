@@ -1,0 +1,348 @@
+<?php
+
+/**
+ * How tags/hashtags can be ouptuted - plain text or links
+ */
+define('HASHTAGS_ALL_TAGS_AS_LINKS', 1);
+define('HASHTAGS_ONLY_HASHTAGS_AS_LINKS', 2);
+define('HASHTAGS_ALL_TAGS_AS_PLAIN_TEXT', 3);
+
+/**
+* Implements hook_help.
+*/
+function hashtags_help($path, $arg) {
+  switch ($path) {
+    case "admin/help#hashtags":
+      return '<p>'.  t("Configure default behavior of hashtags, including in which vocabulary it\'ll be stored, outputing, showing field.") .'</p>';
+      break;
+  }
+}
+
+/**
+ * Implements hook_permission().
+ */
+function hashtags_permission() {
+  return array (
+    'administer hashtags' => array(
+      'title' => t('Administer hashtags'),
+      'restrict access' => TRUE,
+    ),
+  );
+}
+
+/**
+* Implements hook_menu.
+*/
+function hashtags_menu() {
+  $items['admin/config/content/hashtags'] = array(
+    'title' => 'Hashtags',
+    'description' => 'Configure default behavior of hashtags, including in which vocabulary it\'ll be stored, outputing, showing field.',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('hashtags_configuration_form'),
+    'access arguments' => array('administer hashtags'),
+    'weight' => -10,
+  );
+
+  return $items;
+}
+
+/**
+ * Implementation of hook_form_alter().
+ */
+function hashtags_form_alter(&$form, $form_state, $form_id) {
+  $vid = variable_get('hashtags_vocabulary', '');    
+  // check only for hashtag content types.  
+  if (isset($form['type']) && isset($form['#node']) && 
+      _hashtags_node_check_node_type($form['#node']) &&
+      !variable_get('hashtags_show_taxonomy_field', 1)) {
+    $voc = taxonomy_vocabulary_load($vid);
+    $hashtags_field_id = "edit-field-".$voc->machine_name;    
+    // Hide hashtag textfield from node add/edit page;
+    drupal_add_js('(function($){$("div#'.$hashtags_field_id.'").css("display", "none");})(jQuery);', array('type' => 'inline', 'scope' => 'footer'));
+  }    
+}
+
+/**
+ * Implementation of hook_node_presave().
+ */
+function hashtags_node_presave($node) {
+  $vid = variable_get('hashtags_vocabulary', '');
+  $voc = taxonomy_vocabulary_load($vid);  
+  $hashtags = hashtags_get_tags($node->body['und'][0]['value']);
+  $field_name = variable_get('hashtags_terms_field', '');   
+
+  // we have 3 types of hashtags in Body field:
+  // New,
+  // Removed,
+  // Updated - not touched  
+  // Field contains tags and hashtags - we should synhronize Body and Field hashtags
+  $all_hashtags_in_body     = array();
+  $new_hashtags_in_body      = array();  
+  $removed_hashtags_in_body  = array();
+  $steady_hashtags_in_body  = array();
+  $all_hashtags_names_in_field = array();
+
+  // fill up all arrays with data
+  if (isset($node->{$field_name}['und']) && sizeof($node->{$field_name}['und'])) {
+    foreach ($node->{$field_name}['und'] as $tag) { //foreach($node->field_tags['und'] as $tag) {
+      if ($tag['name'][0] == '#') {
+        $all_hashtags_in_body[$tag['name']] = $tag['tid'];
+        $all_hashtags_names_in_field[$tag['name']] = $tag['name'];
+      }
+    }
+  }
+  // define what hashtags should to be added/removed for this node
+  foreach ($hashtags as $name) {
+    // this tag belongs to this node ?
+    if (in_array($name, $all_hashtags_names_in_field)) {
+      $steady_hashtags_in_body[$name] = $all_hashtags_in_body[$name];
+      unset($all_hashtags_in_body[$name], $all_hashtags_names_in_field[$name]);
+    } else {
+      $new_hashtags_in_body[$name] = $name;
+    }
+  }
+  // Removed hashtags
+  $removed_hashtags_in_body = array_values($all_hashtags_in_body);
+  //watchdog('new:', '<pre>'.print_r($new_hashtags_in_body, TRUE).'</pre>');
+  //watchdog('upd:', '<pre>'.print_r($steady_hashtags_in_body, TRUE).'</pre>');
+  //watchdog('del:', '<pre>'.print_r($removed_hashtags_in_body, TRUE).'</pre>');
+  
+  $tags_on_remove = array();
+  $i=0;
+  // clear all hashtags from Tags list
+  if (isset($node->{$field_name}['und']) && sizeof($node->{$field_name}['und'])) {
+    foreach($node->{$field_name}['und'] as $tag) { 
+      if ($tag['name'][0] == '#') {
+        $tags_on_remove[] = $i;
+      }
+      ++$i;
+    }  
+    foreach ($tags_on_remove as $tag_index) {
+      unset ($node->{$field_name}['und'][$tag_index]);
+    }
+    $node->{$field_name}['und'] = array_values($node->{$field_name}['und']);
+  }
+
+  $hashtag_instance = array();
+  $hashtag_instance['vid'] = $vid;
+
+  // fill up Tags list with hashtags
+  foreach ($hashtags as $name) {
+    $tt = taxonomy_get_term_by_name($name);
+    if (in_array($name, $new_hashtags_in_body)) {
+      // if this is a new hashtag - we need to create it in db
+      if ($tt == array()) {
+        $edit = array(
+          'name' => t($name),
+          'description' => '',
+          'parent' => array(0),
+          'vid' => $vid,
+        );
+        $term = (object) $edit;
+        taxonomy_term_save($term);
+      }
+      $tt = taxonomy_get_term_by_name($name);
+      $tid = key($tt);
+    } else {
+      $tid = $steady_hashtags_in_body[$name];
+    }
+    
+    $instance = array();
+    $instance['tid'] = $tt[$tid]->tid;
+    $instance['vid'] = $tt[$tid]->vid;
+    $instance['name'] = $tt[$tid]->name;
+    $instance['vocabulary_machine_name'] = $tt[$tid]->vocabulary_machine_name;
+    $instance['rdf_mapping'] = $tt[$tid]->rdf_mapping;
+    $node->{$field_name}['und'][] = $instance;       
+  }  
+}
+/**
+ * Implementation of hook_node_load().
+ */
+function hashtags_node_load($nodes) {  
+  $vid = variable_get('hashtags_vocabulary', 0);  
+  foreach ($nodes as $node) {
+    if (_hashtags_node_check_node_type($node)) {
+      $terms = hashtags_node_get_terms($node->nid);      
+      if (isset($node->teaser)) {        
+        $node->teaser['und'][0]['safe_value'] = hashtags_node_transform_to_links($node->teaser['und'][0]['safe_value'], $terms);
+      } else {                
+        $node->body['und'][0]['safe_value'] = hashtags_node_transform_to_links($node->body['und'][0]['safe_value'], $terms);
+      }           
+    }
+  }
+}
+
+/*
+ * Create and return commas separated string from hashtag words (#some_word)
+ */
+function hashtags_get_tags($text) {
+  $tags_list = array();
+  $pattern = "/#[0-9A-Za-z_]+/";
+  preg_match_all($pattern, $text, $tags_list);    
+  $result = array_unique($tags_list[0]);
+  return $result;
+}
+
+/*
+ * Returns an array of hashtags for $nid node
+ * Array['term_name'] = term_id;
+ */
+function hashtags_node_get_terms($nid) {
+  $terms = array();
+  $output_type = variable_get('hashtags_output_type', 2);
+  if ($output_type == HASHTAGS_ALL_TAGS_AS_LINKS || $output_type == HASHTAGS_ONLY_HASHTAGS_AS_LINKS) {
+    $vid = variable_get('hashtags_vocabulary', '');
+    $only_hashtags_condition = '';
+    if ($output_type == HASHTAGS_ONLY_HASHTAGS_AS_LINKS) {
+      $only_hashtags_condition = " AND LEFT(ttd.name,1) = '#'";
+    }
+    $sql = "SELECT ttd.tid, ttd.name FROM `taxonomy_term_data` ttd
+    INNER JOIN `taxonomy_index` ti ON ttd.tid = ti.tid
+    WHERE ttd.vid = :vid AND ti.nid = :nid $only_hashtags_condition";
+    $result = db_query($sql, array(':vid' => $vid, ':nid' => $nid));
+    foreach ($result as $term) {
+      $terms[$term->name] = $term->tid;
+    }
+  }
+
+  return $terms;  
+}
+
+/*
+ * Find each hashtag word (#some_word) and turn it into the link
+ * (<a href="taxonomy/term/$tid">#some_word</a>). $tid are taken
+ * from $terms array. 
+ */
+function hashtags_node_transform_to_links($text, $terms) {       
+  foreach ($terms as $word => $tid) {
+    if (strstr($text, $word)) {      
+      //$link = '<a href="#">'.$word.'</a>';// l($word, "taxonomy/term/$tid", array('attributes' => array('class' => 'hashtag')));
+      $link = l($word, "taxonomy/term/$tid"); // , array('attributes' => array('class' => 'hashtag'))      
+      // TODO:
+      // Fatal error: [] operator not supported for strings in E:\xampp\htdocs\...\common.inc on line 2313
+      // $link = l($word, "taxonomy/term/$tid", array('attributes' => array('class' => 'hashtag'));      
+      $pattern = "/$word\b/";      
+      $text = preg_replace($pattern, $link, $text);      
+    }
+  }  
+  return $text;
+}
+
+/**
+ * Check whether a content type can be used in a hashtag. 
+ */
+function _hashtags_node_check_node_type($node) {
+  // Fetch information about the forum field.
+  $field = field_info_instance('node', 'field_hashtags', $node->type);  
+  return is_array($field);
+}
+
+/**
+* Hashtags configuration form
+*/
+function hashtags_configuration_form($form, &$form_state) {
+  $form['hashtags_output_type'] = array(
+    '#type' => 'select',
+    '#title' => t('Format type'),
+    '#description' => t('How tags/hashtags will be shown'),
+    '#default_value' => variable_get('hashtags_output_type', 2),
+    '#options' => array(
+      HASHTAGS_ALL_TAGS_AS_LINKS => t('tags/hashtags as links'),
+      HASHTAGS_ONLY_HASHTAGS_AS_LINKS => t('only hashtags as links'),
+      HASHTAGS_ALL_TAGS_AS_PLAIN_TEXT => t('tags/hashtags as plain text'),
+    ),
+  );
+  $form['hashtags_show_taxonomy_field'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Show tag field'),
+    '#default_value' => variable_get('hashtags_show_taxonomy_field', 1),
+    '#description' => t('Show a taxonomy field on node add/edit form'),
+  );
+  $field_name = variable_get('hashtags_terms_field', '');
+  $form['hashtags_terms_field'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Hashtags terms field'),
+    '#default_value' => $field_name,
+    '#required' => TRUE,
+    '#disabled' => TRUE,
+    //'#description' => t(''),
+  );    
+  $types = node_type_get_names();  
+  //dsm($types);
+  $types_keys = array_keys($types);
+  $default_values = array();
+  $vocabulary = taxonomy_vocabulary_load(variable_get('hashtags_vocabulary', 0));
+  foreach ($types_keys as $type) {    
+    if (field_info_instance('node', $field_name, $type)) {
+      $default_values[$type] = $type;
+    } else {
+      $default_values[$type] = 0;
+    }
+  }  
+  $values = array();
+  $form['hashtags_content_types'] = array(
+    '#type' => 'checkboxes',
+    '#title' => t('Content types'),
+    '#options' => $types,
+    '#default_value' => $default_values, 
+  );
+  $form['#submit'][] = 'hashtags_configuration_form_content_type_settings_submit';
+
+  return system_settings_form($form);
+}
+
+function hashtags_configuration_form_validate($form, &$form_state) {
+  if ($form_state['clicked_button']['#value'] == t('Save configuration')) {
+    $vocabulary = taxonomy_vocabulary_load(variable_get('hashtags_vocabulary', 0));
+    if (!$vocabulary) {
+      form_set_error('', t('Taxonomy has n\'t been created or has been deleted manually.. try to reinstall module.'));
+      return;
+    }
+    $field_name = variable_get('hashtags_terms_field', '');    
+    if (!field_info_field($field_name)) {
+      form_set_error('', t('Terms field has n\'t been created or has been deleted manually.. try to reinstall module.'));
+      return;
+    } 
+  }
+}
+
+function hashtags_configuration_form_content_type_settings_submit($form, &$form_state) {
+  if ($form_state['clicked_button']['#value'] == t('Save configuration')) {        
+    $field_name = variable_get('hashtags_terms_field', '');    
+    foreach ($form_state['values']['hashtags_content_types'] as $content_type => $checked) {      
+      $instance = field_info_instance('node', $field_name, $content_type);
+      if ($content_type === $checked) {        
+        if (!is_array($instance)) {          
+          $instance = array(
+            'field_name' => $field_name, 
+            'entity_type' => 'node',
+            'label' => 'Hashtags',
+            'bundle' => $content_type,
+            'widget' => array(
+              'type' => 'taxonomy_autocomplete',
+              'weight' => -4,
+            ),
+            'display' => array(
+              'default' => array(
+                'type' => 'taxonomy_term_reference_link',
+                'weight' => 10,
+              ),
+              'teaser' => array(
+                'type' => 'taxonomy_term_reference_link',
+                'weight' => 10,
+              ),
+            ),
+          );
+          field_create_instance($instance);          
+        } 
+      } else {
+        if (is_array($instance)) {          
+          field_delete_instance($instance, FALSE);          
+        } 
+      }
+    }
+    //cache_clear_all();
+    drupal_set_message(t('Content types changes have been saved.'));
+  }  
+}

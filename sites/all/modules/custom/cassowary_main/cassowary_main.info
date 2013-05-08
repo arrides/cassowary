@@ -1,0 +1,6 @@
+name = Cassowary main module
+description = Cassowary system module for custom settings, alter etc.
+package = Cassowary
+dependencies[] = placeholder
+core = 7.x
+files[] = cassowary_main.module

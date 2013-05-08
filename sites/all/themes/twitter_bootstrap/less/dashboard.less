@@ -1,0 +1,431 @@
+/* Dashboard Tabs */
+
+.pane-cassowary-main-cassowary-user-dashboard-tabs {
+    margin-left: 20px;
+
+    h3 {
+        font-family: @helvetica;
+        font-size: 24px;
+        line-height: 30px;
+        margin: 30px 0 25px 0;
+    }
+
+    .cassowary-user-tabs {
+        list-style: none;
+        //overflow: hidden;
+        margin: 0;
+        margin-bottom: -30px;
+        .clearfix();
+
+        li {
+            display: block;
+            float: left;
+
+            a {
+                color: #000;
+                display: block;
+                font-family: @helvetica;
+                font-size: 14px;
+                line-height: 32px;
+                padding: 0 12px;
+                white-space: nowrap;
+                position: relative;
+
+                /*&:after {
+                    content: '';
+                    display: block;
+                    position: absolute;
+                    left: 50%;
+                    margin-left: -12px;
+                    bottom: -45px;
+                    width: 0;
+                    height: 0;
+                    border-left: 25px solid transparent;
+                    border-right: 25px solid transparent;
+                    border-top: 25px solid #e3e3e3;
+                }
+                &:before {
+                    content: '';
+                    display: block;
+                    position: absolute;
+                    left: 50%;
+                    margin-left: -12px;
+                    bottom: -35px;
+                    width: 0;
+                    height: 0;
+                    border-left: 25px solid transparent;
+                    border-right: 25px solid transparent;
+                    border-top: 25px solid #fff;
+                }*/
+                .unread-messages {
+                    .badge();
+                    background: #669933;
+                    .border-radius(5px);
+                    padding: 2px 6px;
+                    font-size: 10px;
+                    line-height: 12px;
+                }
+            }
+        }
+        li + li {
+            margin-left: 24px;
+        }
+        a.active,
+        a.active2,
+        a:hover {
+            background: #669933;
+            .border-radius(5px);
+            color: @white;
+            text-shadow: 0px -1px 2px #333;
+            text-decoration: none;
+
+            .unread-messages {
+                background: @white;
+                color: @black;
+            }
+        }
+    }
+
+}
+
+
+.page-billing-plans {
+    .page-header, .pane-title {
+        font-family: @helvetica;
+        font-size: 24px;
+        line-height: 30px;
+        padding-bottom: 0px;
+        margin: 0 0 20px;
+    }
+    .pane-title {
+        background: url('../img/divider-03.png') repeat-x 0 bottom;
+        padding-bottom: 20px;
+    }
+    .panel-2col-stacked {
+        .view-content {
+            margin: 0 -24px;
+            .clearfix();
+            margin-bottom: 50px;
+        }
+        .views-row {
+            background: @white;
+            border: 1px solid #cccccc;
+            .border-radius(5px);
+            float: left;
+            margin: 0 9px;
+            padding: 20px 20px 100px 20px;
+            position: relative;
+            width: 190px;
+            min-height: 1px;
+
+            &:hover {
+                border: 5px solid #669933;
+                margin: -4px 5px;
+            }
+
+            .views-field-title,
+            .views-field-field-price-plan,
+            ul li {
+                font-family: @helvetica;
+            }
+            .views-field-title,
+            .views-field-field-price-plan {
+                line-height: 30px;
+                font-weight: bold;
+            }
+            .views-field-title {
+                color: @black;
+                font-size: 24px;
+            }
+            .views-field-field-price-plan {
+                color: #669933;
+                font-size: 18px;
+                margin-bottom: 10px;
+            }
+            .rules-link {
+                .btn();
+                .btn-primary();
+                background: #669933;
+                border: 0 none;
+                bottom: 31px;
+                left: 50%;
+                font-family: @HelveticaRegular;
+                font-size: 21px;
+                line-height: 50px;
+                margin-left: -65px;
+                padding: 0;
+                position: absolute;
+                text-shadow: 0 -1px 0 #333;
+                width: 130px;
+
+                &:hover {
+                    background: #669933;
+                    opacity: 0.9;
+                }
+            }
+            ul {
+                list-style: none;
+                margin: 0;
+
+                li {
+                    font-size: 14px;
+                    line-height: 100%;
+                    margin: 0 0 10px ;
+
+                    &:before {
+                        color: #669933;
+                        content: '• ';
+                    }
+                }
+            }
+        }
+        .panel-col-last,
+        .panel-col-first {
+            font-family:@helvetica;
+
+            a {
+                text-decoration: underline;
+                &:hover {
+                    text-decoration: none;
+                }
+            }
+        }
+        .panel-col-last p {
+            margin-bottom: 0;
+        }
+    }
+}
+
+
+#block-cassowary-main-cassowary-user-dashboard2 {
+    width: 600px;
+
+    .control-group {
+        margin-bottom: 12px;
+
+        label {
+            color: #000;
+            float: left;
+            //line-height: 36px;
+            line-height: 18px;
+            margin: 0;
+            text-align: right;
+            width: 116px;
+            margin-top: 8px;
+        }
+        .controls {
+            margin-left: 131px;
+        }
+        input {
+            padding: 7px 10px;
+            width: 260px;
+        }
+    }
+    .form-type-password-confirm.form-item-password > .controls {
+        margin-left: 0;
+    }
+    .password-strength,
+    .password-strength-text {
+        float: right;
+        line-height: 36px;
+    }
+    .password-strength-title {
+        white-space: nowrap;
+        margin-right: 46px;
+        font-family: @helvetica;
+    }
+    .form-item-password .form-item-password-pass2 label {
+        margin-top: 0;
+    }
+
+    .btn-primary {
+        margin: 30px 0 0 131px;
+        border: 0 none;
+        font-family: @helvetica;
+        font-size: 14px;
+        font-weight: bold;
+        padding: 0 25px;
+        line-height: 35px;
+    }
+}
+
+
+.page-dashboard,
+.page-billing-plans,
+.page-messages
+.page-saved-jobs,
+.page-saved-searches,
+.page-notifications,
+.page-messages-private,
+.page-saved-jobs {
+    .top-content .panels-flexible-region-two_columns_flex-left {
+        width: 82px;
+    }
+    .top-content .panels-flexible-region-two_columns_flex-right {
+        width: 850px;
+    }
+}
+
+
+// Notifications Page
+.page-notifications #cassowary-notifications-form {
+    .email-me {
+      font-family: @HelveticaNeueltstd-md;
+      font-size: 14px;
+      line-height: 30px;
+    }
+
+    .form-type-checkbox {
+        margin: 0 0 0 15px;
+
+        .option.checkbox  {
+          font-family: @HelveticaNeueltstd-md;
+          font-size: 14px;
+          line-height: 30px;
+          margin-bottom: 0;
+          padding-top: 0;
+
+          input[type="checkbox"] {
+            margin-top: 6px;
+          }
+        }
+    }
+    .btn {
+      .btn-green();
+      padding: 15px 27px;
+      .border-radius(4px);
+      border: 0 none;
+      text-shadow: 0 -1px 1px black;
+      margin-top: 35px;
+
+
+      font-family: @HelveticaRegular;
+      font-size: 14px;
+      padding: 7px 22px;
+    }
+}
+
+
+
+// Employers Posted Jobs
+.page-posted-jobs {
+
+    .pane-cassowary-main-cassowary-posted-jobs {
+        h2 {
+            display: none;
+        }
+        form > div > button {
+            display: none;
+        }
+        .table {
+            font-family: @helvetica;
+            margin: 0;
+
+            tbody tr {
+                border-top: 1px dotted #333;
+            }
+            th, td {
+                background: none;
+                padding: 0;
+                line-height: 100%;
+                text-align: left;
+                vertical-align: middle;
+                border: none;
+            }
+            tbody td,
+            tbody th {
+                padding: 22px 0;
+            }
+            thead td,
+            thead th {
+                padding: 0;
+            }
+            tbody {
+                .form-type-checkbox {
+                  margin: 20px !important;
+                }
+            }
+            thead {
+                input[type="checkbox"] {
+                    margin: 20px;
+                }
+            }
+        }
+
+
+        // TITLE
+        .posted-jobs-item-1 {
+            overflow: hidden;
+            text-align: right;
+
+            .title,
+            .price,
+            .time,
+            .date {
+                font-weight: bold;
+                line-height: 30px;
+            }
+
+            .title,
+            .price {
+                color: #669933;
+                float: left;
+                font-size: 18px;
+            }
+            .title {
+                margin-right: 17px;
+            }
+            .time,
+            .date {
+                display: inline-block;
+                .ie7-inline-block();
+                font-size: 14px;
+                line-height: 14px;
+                margin-top: 8px;
+            }
+            .time {
+                border-right: 1px solid #ccc;
+                margin-right: 10px;
+                padding-right: 10px;
+            }
+        }
+        .posted-jobs-item-2 {
+            margin-bottom: 10px;
+            overflow: hidden;
+
+            .field-name-field-company,
+            .field-name-field-location {
+                color: #000;
+                display: inline-block;
+                .ie7-inline-block();
+                font-size: 14px;
+                line-height: 14px;
+
+                .field-label {
+                    display: none;
+                }
+            }
+            .field-name-field-company {
+                border-right: 1px solid #333;
+                font-weight: bold;
+                margin-right: 10px;
+                margin-top: 4px;
+                padding-right: 10px;
+            }
+        }
+        .field-name-field-description {
+            color: #333;
+            font-size: 14px;
+            line-height: 24px;
+            margin-bottom: 10px;
+        }
+        a {
+            .btn();
+            .btn-primary();
+            border: 0;
+            font-size: 14px;
+            font-weight: bold;
+            padding: 5px 20px;
+        }
+    }
+}

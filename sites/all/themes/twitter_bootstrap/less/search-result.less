@@ -1,0 +1,183 @@
+/* Search Result */
+.page-search-resume {
+    .page-header {
+
+    }
+    .search-resume-left,
+    .search-resume-middle,
+    .search-resume-rigth {
+        float: left;
+        font-family: arial;
+    }
+    .search-resume-left {
+        width: 160px;
+    }
+    .search-resume-middle {
+        margin-left: 20px;
+        width: 782px;
+    }
+    .search-resume-rigth {
+        display: none;
+    }
+
+    //Left Search Form
+    .search-resume-left {
+        fieldset {
+            margin-bottom: 0;
+        }
+        legend,
+        .control-group > .control-label {
+            border: none;
+            color: #333333;
+            font-family: @HelveticaBold;
+            font-size: 14px;
+            font-weight: normal;
+            line-height: 30px;
+            margin: 0;
+            text-transform: uppercase;
+            width: auto;
+        }
+        #edit-searchleftauthor > legend {
+            /*font-family: helvetica;
+            font-size: 24px;
+            font-weight: bold;
+            line-height: 30px;
+            margin-bottom: 15px;
+            text-transform: none;*/
+            display: none;
+        }
+        input[type="text"] {
+            background: #fff;
+            margin-bottom: 15px;
+            padding: 4px 6px;
+            width: 148px;
+        }
+        .control-group {
+            margin-bottom: 0;
+        }
+        label.checkbox,
+        label.radio {
+            line-height: 24px;
+            margin-bottom: 0;
+            padding-top: 0 !important;
+        }
+        button.form-submit {
+            margin-top: 20px;
+        }
+    }
+    //Middle
+    .search-job-string {
+        background: #fafafa;
+        border-left: 10px solid #c8c8c8;
+        font-family: @helvetica;
+        margin: 13px 0;
+        padding: 20px;
+
+        .row {
+            margin-left: 0;
+        }
+        .title a,
+        .field-name-field-price {
+            color: #669933;
+            font-family: @HelveticaBold;
+            font-size: 18px;
+            line-height: 30px;
+        }
+        .field-name-field-price {
+            float: right;
+            margin-top: -30px;
+        }
+        .field-name-field-description,
+        .description  {
+            color: #333;
+            line-height: 18px;
+            margin-top: 15px;
+        }
+        .date {
+            color: #669933;
+            line-height: 18px;
+        }
+    }
+
+
+    // Search RESUME New Page
+
+    // Search Item
+    .search-job-string {
+
+        // Avatar
+        .avatar {
+            float: left;
+            margin-right: 10px;
+
+            &, img {
+                display: block;
+                .square(42px);
+            }
+        }
+        .title a {
+            line-height: 100%;
+            text-decoration: underline;
+
+            &:hover {
+                text-decoration: none;
+            }
+        }
+        .location {
+            color: #669933;
+            font-weight: bold;
+            font-size: 14px;
+            line-height: 30px;
+            float: right;
+
+            p {
+              margin: 0;
+            }
+        }
+        .location .field-label,
+        .specialization .field-label {
+          display: none;
+        }
+        .specialization {
+          font-weight: bold;
+          font-size: 14px;
+          line-height: 18px;
+
+          .field-items .field-item {
+              display: inline-block;
+              .ie7-inline-block();
+
+              &:after {
+                  content: ', ';
+              }
+              &:last-child:after {
+                 content: '';
+              }
+          }
+        }
+        .bio {
+          margin-top: 10px;
+          clear: both;
+        }
+        .contact_me a {
+            background: url('../img/ico/ico-message.png') no-repeat 0 center;
+            color: #333;
+            display: inline-block;
+            .ie7-inline-block();
+            margin: 10px 0 0 0;
+            padding-left: 22px;
+            text-decoration: underline;
+
+            &:hover {
+                text-decoration: none;
+            }
+        }
+    }
+
+}
+.pager_count {
+    font-family: @HelveticaBold;
+    font-size: 18px;
+    margin-bottom: 12px;
+    text-align: right;
+}

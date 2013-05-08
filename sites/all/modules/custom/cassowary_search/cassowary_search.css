@@ -1,0 +1,9 @@
+#cassowary-search-form .form-item-what, #cassowary-search-form .form-item-where, #cassowary-search-form .form-type-radios.form-item-method {
+  float: left;	
+  margin-right: 20px;
+}
+
+.hidden-save.btn.form-submit, .form-item-dateposted { 
+  /*	.form-item-name */
+  display: none;	
+}

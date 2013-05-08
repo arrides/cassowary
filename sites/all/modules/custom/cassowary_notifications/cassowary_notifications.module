@@ -1,0 +1,178 @@
+<?php
+
+/**
+ * @file
+ * TODO: Enter file description here.
+ */
+
+/**
+ * Implements hook_help().
+ */
+function cassowary_notifications_help($path, $arg) {
+  switch ($path) {
+    case 'admin/help#cassowary_notifications':
+      return t("TODO: Create admin help text.");
+      // OPTIONAL: Add additional cases for other paths that should display help text.
+  }
+}
+
+/**
+ * Implements hook_help().
+ */
+
+function cassowary_notifications_node_insert($node) {
+
+  if(in_array($node->type, variable_get('cassowary_job_workflow_node', array()), TRUE)) {
+    //$begin_time = time() + microtime();
+    //dpm(variable_get('cassowary_job_workflow_node', array()));
+    module_load_include('module', 'cassowary_search');
+
+    // insert new recort for notifications
+    db_insert('cassowary_notifications_state')->fields(array(
+    'nid' => $node->nid,
+    'current_uid' => 0,
+    'mailer_enable' => 1,
+    ))->execute();
+
+    // select all users which recieve notifications
+    $query = db_select('cassowary_job_search_match', 'cjsm');
+    $query->fields('cjsm', array('user_id'));
+    $query->condition('cassowary_job_search_match_is_enabled', 1, '=');
+    $users_list = $query->execute()->fetchCol();
+
+    $sql = db_select('cassowary_search_save', 'css');
+    $sql->fields('css', array('uid', 'data'));
+    $sql->condition('time', $node->created, '<');
+    $sql->condition('type', 'search_job', '=');
+    $sql->condition('uid', $users_list, 'IN');
+    $sql->orderBy('uid', 'DESC');
+    $sql->orderBy('time', 'DESC');
+    $result = $sql->execute()->fetchAll();
+
+    $saved_searches = array();
+    $uid_list = array();
+
+    foreach ($result as $value) {
+
+
+      // no need add the same uid more then one time
+      $match = end($uid_list) == $value->uid ? 0 : 1;
+
+      if ($match == 1) {
+        $data = unserialize($value->data);
+        $new_data = array();
+        // check type
+        $type = array_sum($data['job_type']);
+        if ($type == 0) {
+          $match = 1;
+        }
+        else {
+          // convert string value to key
+          $array_type = cassowary_search_type_job_array($data['job_type']);
+          foreach ($array_type as $value_type) {
+            $match = 0;
+            if($value_type == $node->field_job_type['und'][0]['value']){
+              $match = 1;
+              break;
+            }
+          }
+        }
+        // check company
+        if ($match == 1) {
+          if ($data['company']) {
+            $match = 0;
+            if (isset($node->field_company_text['und'][0]['value']) &&
+                strtolower($node->field_company_text['und'][0]['value']) == strtolower($data['company'])) {
+              $match = 1;
+            }
+          }
+        }
+        // check industry
+        if ($match == 1) {
+          if ($data['industry']) {
+            $match = 0;
+            if (isset($node->field_industry['und'][0]['value']) &&
+                strtolower($node->field_industry['und'][0]['value']) == strtolower($data['industry'])) {
+              $match = 1;
+            }
+          }
+        }
+        // check what
+        if ($match == 1) {
+          if ($data['what']) {
+            $match = 0;
+            $title = $node->title;
+            $clear_text = strip_tags($node->field_description['und'][0]['value']);
+            $words = explode(' ', $data['what']);
+            // check title
+            foreach($words as $search) {
+              if(stripos($title, $search) !== FALSE) {
+                $match = 1;
+                break;
+              }
+            }
+            // check description
+            if($match == 0) {
+              foreach($words as $search) {
+                if(stripos($clear_text, $search) !== FALSE) {
+                  $match = 1;
+                  break;
+                }
+              }
+            }
+          }
+        }
+        // add uid to array
+        if ($match == 1) {
+          $uid_list[] = $value->uid;
+          $module = 'cassowary_notifications';
+          $key = 'cassowary_notifications';
+          $account = user_load($value->uid);
+          // Specify 'to' and 'from' addresses.
+          $to = $account->mail;
+          $from = variable_get('site_mail', 'admin@example.com');
+          $params = array();
+          $params['new_job'] = l(t('New job'), 'node/' . $node->nid, array('absolute' => TRUE));
+          $language = language_default();
+          $send = TRUE;
+          $result = drupal_mail($module, $key, $to, $language, $params, $from, $send);
+          if ($result['result'] != TRUE) {
+            watchdog('error', t('There was a problem sending your message and it was not sent.'));
+          }
+        }
+      }
+
+    }
+    //$end_time = time() + microtime();
+    ///$all_time = $end_time - $begin_time;
+    //dpm($all_time, 'all time');
+    //dpm($result);
+    //dpm($node);
+    //dpm($uid_list);
+
+
+  }
+}
+
+/**
+ * Implement hook_mail().
+ *
+ */
+function cassowary_notifications_mail($key, &$message, $params) {
+  global $user;
+
+  // Each message is associated with a language, which may or may not be the
+  // current user's selected language, depending on the type of e-mail being
+  // sent. This $options array is used later in the t() calls for subject
+  // and body to ensure the proper translation takes effect.
+  $options = array(
+      'langcode' => $message['language']->language,
+  );
+
+  switch ($key) {
+    case 'cassowary_notifications':
+      $message['subject'] = t('New job has been appeared', array(), $options);
+      $message['body'][] = t('!new_job has been appeared that matches of your saved searches. ', array('!new_job' => $params['new_job']), $options);
+      break;
+  }
+}

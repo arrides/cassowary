@@ -1,0 +1,138 @@
+<?php
+
+/**
+ * Implements hook_install().
+ *
+ * @ingroup cassowary_payment
+ */
+function cassowary_payment_install() {
+  
+}
+
+/**
+ * Implements hook_uninstall().
+ *
+ * @ingroup cassowary_payment
+ */
+function cassowary_payment_uninstall() {
+  
+}
+
+/**
+ * Implements hook_schema().
+ * 
+ * @ingroup cassowary_payment
+ */
+function cassowary_payment_schema() {
+  $schema['cassowary_payment_transaction'] = array(
+      'description' => 'Cassowary Payment Transaction',
+      'fields' => array(
+          'tid' => array(
+              'unsigned' => TRUE,
+              'not null' => TRUE,
+              'description' => 'transation id',
+              'type' => 'serial',
+          ),
+          'starting_date' => array(
+              'description' => 'starting date',
+              'type' => 'int',
+              'not null' => TRUE,
+          ),
+          'ending_date' => array(
+              'description' => 'ending date',
+              'type' => 'int',
+              'not null' => TRUE,
+          ),
+          'time' => array(
+              'description' => 'time of transaction',
+              'type' => 'int',
+              'not null' => TRUE,
+          ),
+          'amount' => array(
+              'description' => 'amount',
+              'type' => 'float',
+              'not null' => TRUE,
+          ),
+          'currencycode' => array(
+              'description' => 'currency code',
+              'type' => 'char',
+              'length' => '3',
+              'not null' => TRUE,
+          ),
+          'sender' => array(
+              'description' => 'sender',
+              'type' => 'int',
+              'not null' => TRUE,
+          ),
+          'recipient' => array(
+              'description' => 'recipient',
+              'type' => 'int',
+              'not null' => TRUE,
+          ),
+          'job' => array(
+              'description' => 'job',
+              'type' => 'int',
+              'not null' => TRUE,
+          ),
+          'payment_details' => array(
+              'description' => 'job',
+              'type' => 'blob',
+              'size' => 'normal',
+              'not null' => FALSE,
+          ),
+      ),
+      'primary key' => array('tid'),
+  );
+
+  return $schema;
+}
+
+/**
+ * Implements hook_update().
+ *
+ * @ingroup cassowary_payment
+ */
+
+function cassowary_payment_update_7001() {
+  $field = array(
+              'description' => 'Payment details',
+              'type' => 'blob',
+              'size' => 'normal',
+              'not null' => FALSE,
+          );
+  db_add_field('cassowary_payment_transaction', 'payment_details', $field);
+}
+
+function cassowary_payment_update_7002() {
+  $field = array(
+      'description' => 'Type of transaction',
+      'type' => 'varchar',
+      'length' => 255,
+      'default' => 'job',
+      'not null' => TRUE,
+  );
+  db_add_field('cassowary_payment_transaction', 'type_transaction', $field);
+  
+  $update = db_update('cassowary_payment_transaction')
+  ->fields(array(
+      'type_transaction' => 'job',
+  ))
+  ->execute();
+}
+
+function cassowary_payment_update_7003() {
+  $field = array(
+      'description' => 'Status of transaction',
+      'type' => 'varchar',
+      'length' => 255,
+      'default' => 'CREATED',
+      'not null' => TRUE,
+  );
+  db_add_field('cassowary_payment_transaction', 'status', $field);
+
+  $update = db_update('cassowary_payment_transaction')
+  ->fields(array(
+      'status' => 'CREATED',
+  ))
+  ->execute();
+}

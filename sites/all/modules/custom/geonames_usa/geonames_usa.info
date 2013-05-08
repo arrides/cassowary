@@ -1,0 +1,6 @@
+name = Geonames of the USA
+description = Location of the USA - state and city
+dependencies[] = field
+package = Fields
+core = 7.x
+files[] = geonames_usa.module

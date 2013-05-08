@@ -1,0 +1,398 @@
+/* Employer Job Creation */
+
+.page-node-add-job,
+.node-type-job {
+    .form-actions {
+        margin-left: 120px;
+    }
+
+    .field-name-field-job-type,
+    .field-name-field-company,
+    .form-type-textfield,
+    .form-type-textarea,
+    .field-type-geonames-usa-location {
+        .form-horizontal();
+        .control-label {
+            width: 100px;
+            text-align: right;
+        }
+        .controls {
+            margin-left: 120px;
+        }
+    }
+
+    .field-name-field-job-type {
+        
+        & > label {
+            width: 100px;
+        }
+        .form-type-radio {
+            float: left;
+            .controls {
+                margin: 0;
+            }
+        }
+        label.radio {
+            display: block;
+            width: 100px;
+            input[type="radio"] {
+                display: none;
+            }
+            // icons
+            color: #999;
+            font-family: arial;
+            font-size: 14px;
+            margin: 0px;
+            padding-top: 55px;
+            padding-left: 0;
+            position: relative;
+            text-align: center;
+            width: 120px;
+            cursor: pointer;
+
+            &:after {
+                background: url('../img/icons-job-type.png') no-repeat 50% 50%;
+                content: '';
+                display: block;
+                position: absolute;
+                top: 0;
+                left: 50%;
+            }
+            &.choosen {
+                opacity: 1;
+            }
+            &.cass_job-type-blog {
+                &:after {
+                    background-position: 0 0;
+                    margin-left: -20.5px;
+                    height: 41px;
+                    width: 50px;
+                }
+                &:hover,
+                &:hover:after,
+                &.active,
+                &.active:after {
+                    color: #669900;
+                    background-position: 0 bottom;
+                }
+            }
+            &.cass_job-type-article {
+                &:after {
+                    background-position: -108px 0;
+                    margin-left: -23px;
+                    height: 53px;
+                    width: 46px;
+                }
+                &:hover,
+                &:hover:after,
+                &.active,
+                &.active:after {
+                    color: #3399cc;
+                    background-position: -108px bottom;
+                }
+            }
+            &.cass_job-type-facebook {
+                &:after {
+                    background-position: -204px 0;
+                    margin-left: -25px;
+                    height: 48px;
+                    width: 50px;
+                }
+                &:hover,
+                &:hover:after,
+                &.active,
+                &.active:after {
+                    color: #315c99;
+                    background-position: -204px bottom;
+                }
+            }
+            &.cass_job-type-twitter {
+                &:after {
+                    background-position: -54px 0;
+                    margin-left: -24px;
+                    height: 47px;
+                    width: 48px;
+                }
+                &:hover,
+                &:hover:after,
+                &.active,
+                &.active:after {
+                    color: #1bcbff;
+                    background-position: -54px bottom;
+                }
+            }
+        }
+    }
+
+    .job-list {
+        list-style: none;
+        margin: 0;
+
+        li {
+            border-right: 1px solid #c7c7c7;
+            margin: 0 10px 0 0;
+            padding: 0 10px 0 0;
+
+            &:last-child,
+            &.date-ago {
+              border-right: none 0;
+            }
+        }
+        li, li p, li em {
+            display: inline;
+            font-style: normal;
+            font-family: @helvetica;
+            font-size: 18px;
+            line-height: 30px;
+        }
+        .company {
+            font-weight: bold;
+        }
+        .date-ago {
+            color: #669933;
+        }
+    }
+
+
+
+  // Price options
+    .field-name-field-price {
+        .clearfix();
+
+        .form-type-radios > .control-label {
+            float: left;
+            text-align: right;
+            width: 100px;
+        }
+        .form-type-radios > .controls {
+            margin-left: 120px;
+        }
+        .form-type-radio {
+            float: left;
+            .radio {
+                padding-top: 0;
+            }
+        }
+        .form-type-radio + .form-type-radio {
+            margin-left: 30px;
+        }
+        label.radio {
+            white-space: nowrap;
+        }
+    }
+    .form-item-Change-status {
+        .clearfix();
+        & > label {
+            float: left;
+            text-align: right;
+            width: 100px;
+        }
+        & > .controls {
+            margin-left: 120px;
+        }
+        .form-type-radio {
+            float: left;
+            .radio {
+                padding-top: 0;
+            }
+        }
+        .form-type-radio + .form-type-radio {
+            margin-left: 30px;
+        }
+    }
+
+    .field-name-field-description {
+
+    }
+
+    // Job Detail Page 26.02.2013 by Alex
+    .view-job-page {
+
+        // Page Title, link "<<back"
+        .views-field.views-field-nothing {
+            .back {
+                color: #669933;
+                font-family: @helvetica;
+                font-size: 14px;
+                font-weight: bold;
+            }
+            .job-detail {
+                background: url('../img/divider-03.png') repeat-x 0 100%;
+                color: #333333;
+                font-family: @helvetica;
+                font-size: 24px;
+                font-weight: bold;
+                line-height: 30px;
+                padding-bottom: 18px;
+            }
+        }
+        // Project Title
+        .views-field-title {
+
+            &, h1 {
+                margin: 0;
+            }
+            h1 {
+                color: #669933;
+                font-family: @helvetica;
+                font-size: 24px;
+                font-weight: bold;
+                line-height: 30px;
+            }
+        }
+
+
+        .views-field-nothing-1 {
+
+            & > span {
+              display: block;
+            }
+        }
+        .views-field-created {
+            color: #669933;
+            font-weight: bold;
+
+            em {
+                font-style: normal;
+            }
+        }
+        .views-field-save-job a,
+        .views-field-delete-job a {
+            .btn();
+            margin-right: 20px;
+        }
+        .views-field-save-job,
+        .views-field-nothing-2,
+        .views-field-delete-job {
+            display: inline-block;
+            .ie7-inline-block();
+        }
+        .views-field-nothing-2 {
+            font-family: @helvetica;
+            font-weight: bold;
+        }
+    }
+}
+
+
+//right side blocks
+.node-type-job .pane-applied-jobs {
+  margin-top: 68px;
+}
+
+.page-node-edit {
+    .node-job-form .form-managed-file {
+        margin-left: 120px;
+    }
+}
+
+.node-type-job {
+
+    h1.field-content {
+        .clearfix();
+
+        .views-field-title-inner {
+            float: left;
+        }
+        .views-field-price-inner {
+            color: @black;
+            float: right;
+        }
+    }
+    .views-field-edit-node,
+    .views-field-sign-up-to-the-job,
+    .views-field-apply-for-a-job-emulate {
+        float: left;
+        margin-right: 10px;
+    }
+    .views-field-created {
+        display: none;
+    }
+
+    .view-job-page {
+        .views-field-save-job a,
+        .views-field-delete-job a {
+            .btn-primary();
+        }
+        .views-field-save-job + .views-field-nothing-2 {
+            display: none;
+        }
+        .views-field-nothing-2 {
+            display: none;
+        }
+    }
+
+}
+
+
+.page-sign-up-to-the-job form.confirmation #edit-cancel {
+  margin-left: 10px;
+}
+
+
+
+
+.page-node-add-job .node-preview,
+.page-node-edit .node-preview {
+
+
+    .title-price {
+        .clearfix();
+
+        .node-title,
+        .price {
+            color: #669933;
+            font-family: @helvetica;
+            font-size: 24px;
+            font-weight: bold;
+            line-height: 30px;
+        }
+        .node-title {
+            float: left;
+        }
+        .price {
+            color: @black;
+            float: right;
+        }
+    }
+    .company-location-created ul {
+        list-style: none;
+        margin: 0;
+        margin-bottom: 20px;
+
+        li {
+            border-right: 1px solid #c7c7c7;
+            margin: 0 10px 0 0;
+            padding: 0 10px 0 0;
+            display: inline-block;
+            .ie7-inline-block();
+            font-family: @helvetica;
+            font-size: 18px;
+            line-height: 30px;
+
+            &:last-child {
+                border: 0;
+            }
+            & > div, & p {
+                margin: 0;
+            }
+            .field-label {
+                display: none
+            }
+            &.company {
+                font-weight: bold;
+            }
+
+            &.created {
+                color: #669933 !important;
+            }
+        }
+    }
+}
+
+
+
+// Modal "Aply for this Job"
+.node-type-job {
+
+}

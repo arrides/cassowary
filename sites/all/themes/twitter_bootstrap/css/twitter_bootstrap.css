@@ -1,0 +1,208 @@
+body {
+  font-family: "ACaslonPro";	
+}
+
+ul.nav {
+	/*float: right;*/
+	margin: 20px 0 20px 0;
+}
+
+ul.nav li{
+  float: left;
+  margin-right: 12px;
+}
+
+.view-greate-writers .views-field-field-first-name {
+  float: left;	
+  font-family: "Adobe Caslon Pro";
+  font-size: 18px; 
+  padding-right: 10px;
+}
+
+.view-greate-writers .views-field-field-last-name {
+  font-family: "Adobe Caslon Pro";
+  font-size: 18px;	
+}
+
+.view-greate-writers .views-field-field-avatar {
+  padding-bottom: 15px;	
+}
+.view-greate-writers .table td {
+  padding: 0px;	
+}
+	
+#block-block-1 {
+  width: 340px;	
+  margin-right: 140px;
+  float: left;  
+}
+
+#block-menu-menu-writers, #block-menu-menu-employers, #block-menu-menu-about {
+  float: left;
+  margin-right: 40px;    	
+}
+
+#block-menu-menu-writers ul.nav, #block-menu-menu-employers ul.nav, #block-menu-menu-about ul.nav {
+  margin-top: 0px;	
+  float: none;	
+}
+
+#block-menu-menu-writers ul.nav li, #block-menu-menu-employers ul.nav li, #block-menu-menu-about ul.nav li {
+  float: none;	
+}
+
+.footer .block, .footer .block a {
+  color: #999999;	
+  font-weight: 600;  
+}
+
+.footer .block-title {
+  color: white;
+  font-size: 24px;	
+  font-weight: 600;
+}
+
+#block-block-1 .block-title {
+  text-transform: uppercase;	
+}
+.footer.container {
+  padding: 20px 32px 0px 32px;	
+}
+
+.panels-flexible-region-front_page_authenticated-mid_left img, .panels-flexible-region-front_page_authenticated-mid_right img,
+.panels-flexible-region-front_page_anonimous-mid_left img, .panels-flexible-region-front_page_anonimous-mid_right img{
+  float: left;
+  margin-right: 20px;	
+}
+
+.panels-flexible-region-front_page_authenticated-mid_left h2, .panels-flexible-region-front_page_authenticated-mid_right h2,
+.panels-flexible-region-front_page_anonimous-mid_left h2, .panels-flexible-region-front_page_anonimous-mid_right h2 {
+  font-size: 36px;	
+  font-weight: bold;
+    margin-top: 0;
+}
+
+.panels-flexible-region-front_page_authenticated-mid_left, .panels-flexible-region-front_page_authenticated-mid_right,
+.panels-flexible-region-front_page_anonimous-mid_left, .panels-flexible-region-front_page_anonimous-mid_right {
+  font-size: 24px;	
+  font-weight: 600;
+}
+/*
+.panels-flexible-region-front_page_authenticated-mid_left a, .panels-flexible-region-front_page_authenticated-mid_right a,
+.panels-flexible-region-front_page_anonimous-mid_left a, .panels-flexible-region-front_page_anonimous-mid_right a{
+  line-height: 43px;
+  display:  inline-block;	
+  font-size: 18px;	
+  font-family: "Myriad Pro";
+  background: url('../images/bg_create_port.png') no-repeat;
+  color: white;
+  width: 170px;
+  height: 43px;
+  text-align: center;
+}	
+
+.panels-flexible-region-front_page_authenticated-mid_right a,
+.panels-flexible-region-front_page_anonimous-mid_right a {
+  background: url('../images/bg_create_job.png') no-repeat;
+  width: 126px;
+}*/
+
+.panels-flexible-row-front_page_authenticated-2,
+.panels-flexible-row-front_page_anonimous-2  {
+  background: url('../images/linesgreatewriters.png') repeat-x;
+  margin-top: 45px;
+  padding-top: 45px;
+}
+
+.panels-flexible-row-front_page_authenticated-1,
+.panels-flexible-row-front_page_anonimous-1  {
+  background: url('../images/linepoints.png') repeat-x;
+  margin-top: 34px;
+  padding-top: 40px;
+	
+}
+
+.field-name-body.field-type-text-with-summary {
+ /*width: 335px;*/
+  width: auto;
+  font-size: 24px;
+  line-height: normal;	
+}
+
+.panels-flexible-region-two_columns_flex-right {
+  color: white;	
+  font-size: 14px;	
+  font-family: "Myriad Pro";  
+}
+
+.page-user-portfolio-edit .sortable ul.ui-sortable li {
+  background: none repeat scroll 0 0 #E4E4E4;
+  margin-bottom: 14px;
+  min-height: 110px;
+  padding-left: 90px;
+  position: relative;
+  /*width: 100%;*/
+	width: auto;
+  float: none;
+  border: none;
+  height: auto;
+	text-align: left;
+}
+
+#EPSACropDialog .epsacrop-image-crop .jcrop-holder>div>div>img,
+#EPSACropDialog .epsacrop-presets-menu,
+#editablefields-field-avatar .image-widget-data,
+#editablefields-field-avatar .tabledrag-changed-warning {
+  display: none;
+}
+
+.messages.status .krumo-root, .messages.status .krumo-root a { 
+color: #000000;
+}
+
+body.page-hire .form-item-recipient,
+body.page-hire .form-item-subject {
+  display: none;
+}
+
+body.page-node-add-tweet span.form-required,
+body.page-node-add-article span.form-required,
+body.page-node-add-blog-post span.form-required,
+body.page-node-add-blurb span.form-required,
+body.page-node-add-facebook-post span.form-required
+{
+  display: none;
+}
+
+.dashboard-avatar img {
+	width: 80px;
+	height: 80px;
+}
+
+
+.pane-cassowary-main-cassowary-user-dashboard-tabs .cassowary-user-tabs a.active2 {
+  background: #669933;
+  -webkit-border-radius: 5px;
+  -moz-border-radius: 5px; 
+  border-radius: 5px;
+  color: #ffffff;
+  text-shadow: 0px -1px 2px #333333;
+  text-decoration: none;
+}
+
+.hidden-save, .form-item-dateposted" {
+  display: none;	
+}
+
+.view-id-job_page .views-field.views-field-nothing-3, .view-id-job_page .views-field.views-field-nothing-4 {
+  display: none;	
+}
+
+#cassowary-search-left-author-resume-form .hidden-save {
+  display: none;		
+}
+
+
+#privatemsg-new.ctools-use-modal-processed .form-item-recipient, #privatemsg-new.ctools-use-modal-processed .form-item-subject {
+  display: none;	 	
+}

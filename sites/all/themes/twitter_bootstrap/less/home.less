@@ -1,0 +1,286 @@
+/* CASSOWARY "Home" Page 06.11.2012
+-------------------------------------*/
+
+.introduction {
+    margin: 0 20px 0 35px;
+    //width: 414px;
+    img {
+        margin: 0 0 20px 32px;
+    }
+    p {
+        font-size: 24px;
+        line-height: 30px;
+        &:last-child {
+            margin-bottom: 0;
+        }
+    }
+
+}
+body.logged-in .introduction {
+    &, img {
+        margin: 0;
+    }
+    img {
+        margin-bottom: 10px;
+    }
+    text-align: center;
+}
+
+
+.login-section, .pane-user-login {
+    background: @white;
+    .border-radius(2px);
+    .box-shadow( 0px 0px 4px rgba(50, 50, 50, 0.5));
+    //margin: 77px 4px 61px 29px;
+    margin: 77px 4px 0 29px;
+    padding: 22px 34px;
+
+    form {
+        margin: 0;
+    }
+    article, h2.pane-title {
+        font-size: 24px;
+        font-weight: normal;
+        line-height: 30px;
+        margin: 0 0 10px 0;
+    }
+    label.control-label {
+        display: none;
+    }
+
+    input[type="text"],
+    input[type="password"] {
+        font-family: arial !important;
+        width: 339px;
+        &::-webkit-input-placeholder {
+            font-family: arial !important;
+        }
+        &:-moz-placeholder {
+            font-family: arial !important;
+        }
+    }
+    .user-forgot {
+        display: inline;
+    }
+    .forgot-password, .user-forgot a {
+        font-family: @HelveticaRegular;
+        font-style: italic;
+        margin-left: 15px;
+    }
+    .sign-out-link, .user-register {
+        font-family: @sansFontFamily;
+        font-size: 18px;
+        line-height: 30px;
+        margin-top: 10px;
+    }
+    button {
+        vertical-align: baseline;
+    }
+}
+.error {
+    color: @errorText;
+}
+
+.writers,
+.employers {
+    h1 {
+        margin: 0 0 5px 0;
+    }
+    p {
+        font-size: 24px;
+        line-height: 30px;
+        margin-bottom: 12px;
+    }
+}
+.writers {
+    background: url('../img/ico/ico-writers.png') no-repeat 6px 22px;
+    padding-left: 190px;
+}
+.employers {
+    background: url('../img/ico/ico-employers.png') no-repeat 27px 6px;
+    padding-left: 186px;
+}
+.blogger-item {
+    float: left;
+    margin-left: 39px;
+    width: 161px;
+    p {
+        color: @black;
+        font-size: 18px;
+        line-height: 24px;
+        margin: 12px 0 0 0;
+        span {
+            color: #666;
+            display: block;
+        }
+    }
+}
+
+
+// Dropdown Menu
+.pane-cassowary-main-cassowary-user-dashboard, .cas_login-menu {
+    margin-top: 9px;
+    //.clearfix();
+
+    position: absolute;
+    right: 32px;
+    top: 0;
+
+    ul.cassowary-user-dashboard, ul.user-login {
+        font-family: @helvetica;
+        font-size: 14px;
+        float: right;
+        list-style: none;
+        margin: 0;
+
+            & > li {
+                display: block;
+                float: left;
+                line-height: 39px;
+
+                a {
+                  display: block;
+                }
+                ul {
+                    display: none;
+                }
+            }
+            .divider {
+                border: 1px dotted #848383;
+                margin: 9px 14px 9px 0px;
+                height: 21px;
+            }
+            & > .user-dashboard {
+                background: url('../img/ico/ico-arrow-down.png') no-repeat 50% 15px;
+                cursor: pointer;
+                position: relative;
+                line-height: 39px;
+                .size(38px, 39px);
+
+                &:hover ul{
+                    display: block;
+                }
+
+                a {
+                    color: @white;
+                }
+
+                ul {
+                    background: #fbfbfb;
+                    .border-radius(5px);
+                    border-top: 1px solid #dddddd;
+                    .box-shadow(0px 1px 3px #bfbfbf);
+                    cursor: default;
+                    padding-bottom: 10px;
+                    position: absolute;
+                    top: -1px;
+                    right: -2px;
+                    list-style: none;
+                    margin: 0;
+                    width: 190px !important;
+                    z-index: @zindexDropdown;
+
+                    li {
+                        display: block;
+                        height: 30px;
+                        line-height: 30px;
+                        padding: 0 16px;
+                    }
+
+                    li a {
+                        color: #333;
+                        display: inline;
+                        font-family: @helvetica;
+                        font-size: 14px;
+                        //vertical-align: middle;
+
+                        &:hover {
+                            color: #669933;
+                            text-decoration: none;
+                        }
+                        span.unread-messages {
+                            .badge();
+                            background: #669933;
+                            .border-radius(5px);
+                            padding: 2px 6px;
+                            font-size: 10px;
+                            line-height: 12px;
+                        }
+                    }
+                    li.user-dashboard-child.first {
+                        background: url('../img/ico/ico-arrow-down.png') no-repeat 165px -11px;
+                        border-bottom: 1px solid #dddddd;
+                        height: 39px;
+                        line-height: 39px;
+                        margin-bottom: 10px;
+                        padding: 0 26px 0 16px;
+
+                        a {
+                            color: #669933;
+                            display: inline-block;
+                            max-width: 150px;
+
+                            //text overflow
+                            white-space: nowrap;
+                            overflow: hidden;
+                            text-overflow: ellipsis;
+
+                            &:hover {
+                                text-decoration: underline;
+                            }
+                        }
+                    }
+                }
+            }
+
+            .user-dashboard > a {
+                padding-right: 24px + 14px;
+                max-width: 200px;
+                overflow: hidden;
+                white-space: nowrap;
+                text-overflow: ellipsis;
+
+                &:after {
+                    background: url('../img/ico/ico-arrow-down.png') no-repeat 100% 16px;
+                    display: block;
+                    position: absolute;
+                    content: '';
+                    top: 0;
+                    right: 13px;
+                    height: 39px;
+                    width: 24px;
+                }
+            }
+            & > li.user-dashboard.active > a {
+                background-color: #fbfbfb;
+                .border-radius(5px 5px 0 0);
+                color: #669933;
+                padding-left: 16px;
+                padding-right: 24px;
+                min-width: 150px;
+
+                &:hover {
+                    text-decoration: none;
+                }
+
+              &:after {
+                  background-position: 100% -10px;
+              }
+
+            }
+            .user-logout > a {
+                color: #669933;
+            }
+
+
+    }
+    ul.user-login {
+        .divider {
+            margin: 9px 14px;
+        }
+    }
+}
+
+header .pane-cassowary-search-cassowarysearch {
+  margin-top: 20px;
+}

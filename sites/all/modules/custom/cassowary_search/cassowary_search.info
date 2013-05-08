@@ -1,0 +1,4 @@
+name = Cassowary search
+description = Special search for Cassowary
+package = Cassowary
+core = 7.x

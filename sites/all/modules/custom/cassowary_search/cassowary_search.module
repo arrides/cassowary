@@ -1,0 +1,1956 @@
+<?php
+/**
+ * @file
+ * TODO: Enter file description here.
+ */
+
+/**
+ * Implements hook_init().
+ */
+function cassowary_search_init(){
+	drupal_add_js(drupal_get_path('module', 'cassowary_search') . '/js/cassowary_search.js', 'file');	
+}
+
+/**
+ * Implements hook_menu().
+ */
+function cassowary_search_menu() {
+  $items = array();  	
+  $items['search_job'] = array(
+      'type' => MENU_CALLBACK,
+      'title' => 'Job Search',
+      'page callback' => 'cassowary_search_job',
+      'access callback' => TRUE,
+  );
+  $items['search_job/%/%'] = array(
+    'type' => MENU_CALLBACK,
+    'title' => 'Job Search',
+    'page callback' => 'cassowary_search_job',
+  	'page arguments' => array(1,2),
+    'access callback' => TRUE,
+  );
+  $items['search_resume'] = array(
+    'type' => MENU_CALLBACK,
+    'title' => 'Portfolio Search',
+    'page callback' => 'cassowary_search_resume',
+    'access callback' => TRUE,
+  ); 
+  $items['search_resume/%/%'] = array(
+  		'type' => MENU_CALLBACK,
+  		'title' => 'Portfolio Search',
+  		'page callback' => 'cassowary_search_resume',
+  		'page arguments' => array(1,2),
+  		'access callback' => TRUE,
+  );  
+  $items['search_job_auto/industry'] = array(
+  	'type' => MENU_CALLBACK,
+  	'title' => 'Industry',
+  	'page callback' => 'cassowary_search_industry_autocomplete_callback',
+  	//'access arguments' => TRUE,
+  
+  	'access callback' => TRUE,
+  	'access arguments' => array('access industry autocomplete'),
+  );  
+  
+  $items['search_job_auto/company'] = array(
+  		'type' => MENU_CALLBACK,
+  		'title' => 'Company',
+  		'page callback' => 'cassowary_search_company_autocomplete_callback',
+  		//'access arguments' => TRUE,
+  
+  		'access callback' => TRUE,
+  		'access arguments' => array('access company autocomplete'),
+  );  
+  $items['saved-searches'] = array(
+  		'type' => MENU_CALLBACK,
+  		'title' => 'Saved searches',
+  		'page callback' => 'cassowary_saved_searches',
+  		'access callback' => TRUE,
+  );  
+  $items['saved-searches/%/%'] = array(
+  		'type' => MENU_CALLBACK,
+  		'title' => 'Resume Search',
+  		'page callback' => 'cassowary_saved_searches',
+  		'page arguments' => array(1,2),
+  		'access callback' => TRUE,
+  );  
+  
+  return $items;   
+}
+
+/**
+ * Implements hook_search_execute().
+ */
+
+function cassowary_search_search_execute($keys = NULL, $conditions = NULL) {
+	// Build matching conditions
+	//jobs or resumes
+	$keys2 = explode(' ', $keys);
+	//$keys = explode(' ', $keys);
+	//dsm($keys2);
+	if(!isset($conditions['resume'])){ 
+		$query = db_select('search_index', 'i', array('target' => 'slave'))->distinct()->extend('PagerDefault');//->extend('SearchQuery')->extend('PagerDefault');
+		$query->join('node', 'n', 'n.nid = i.sid');
+		$query
+		->condition('n.status', 1)
+		->condition('i.word', $keys2, 'IN')
+		->addTag('node_access');
+		//->searchExpression($keys, 'node');
+		$query->fields('i', array('sid'));
+		
+		$query
+		->fields('n', array('nid', 'created'))
+		->condition('n.type', 'job', '=');
+		$query -> leftJoin('field_data_field_job_type', 'job_type', 'n.nid = job_type.entity_id');
+		$query -> leftJoin('field_data_field_industry', 'industry', 'n.nid = industry.entity_id');	
+		$query -> leftJoin('field_data_field_company_text', 'company', 'n.nid = company.entity_id');
+
+		
+		/*if(isset($conditions['company']) and $conditions['company'] != ''){
+			$query -> leftJoin('field_data_field_company', 'company', 'n.nid = company.entity_id');
+			$query -> leftJoin('node', 'node_company', 'node_company.nid = company.field_company_target_id');
+			$query->condition('node_company.title', $conditions['company'], '=');
+		}*/	
+		
+		$query
+		->condition('job_type.entity_type', 'node')
+		->condition('job_type.bundle', 'job')
+		->condition('job_type.field_job_type_value', $conditions['job_type'], 'IN')
+		->condition('n.created', time()-$conditions['timepost'],'>');
+
+		if(isset($conditions['company']) and $conditions['company'] != ''){
+			$query->condition('field_company_text_value', $conditions['company'], '=');
+		}
+				
+		if(isset($conditions['industry']) and $conditions['industry'] != ''){
+		  $query->condition('field_industry_value', $conditions['industry'], '=');
+		}	
+		
+		//$query -> groupBy('n.nid');
+		
+		if(isset($conditions['sortby']) && ($conditions['sortby'] == 'date')){
+		  $query->orderby('n.created', 'desc');
+		}
+		
+		/*// Insert special keywords.
+		$query->setOption('type', 'n.type');
+		$query->setOption('language', 'n.language');
+		if ($query->setOption('term', 'ti.tid')) {
+			$query->join('taxonomy_index', 'ti', 'n.nid = ti.nid');
+		}
+		// Only continue if the first pass query matches.
+		if (!$query->executeFirstPass()) {
+			return array();
+		}
+		
+		// Add the ranking expressions.
+		_node_rankings($query);
+		*/
+		
+		// Load results.
+		$find = $query
+		->limit(10)
+		->execute();
+		//dsm($find);
+		$results = array();		
+		
+	} else {
+		//dsm('here query');
+		//$query = db_select('search_index', 'i', array('target' => 'slave'))->extend('SearchQuery');//->extend('PagerDefault');
+		/*if(isset($conditions['choose'])) { 
+			$query = db_select('search_index', 'i', array('target' => 'slave'))->extend('SearchQuery')->extend('PagerDefault');
+		} else {*/
+		$query = db_select('search_index', 'i', array('target' => 'slave'))->extend('PagerDefault');//->extend('SearchQuery');
+		$query->join('node', 'n', 'n.nid = i.sid');
+		$query
+		->condition('n.status', 1)
+		->condition('i.word', $keys2, 'IN')
+		->addTag('node_access');
+		//->searchExpression($keys, 'node');
+		$query->fields('i', array('sid'));
+		$query
+		//->fields('n', array('nid', 'created', 'uid'));
+		->fields('n', array('nid', 'created', 'uid'));
+		
+		$query -> leftJoin('users', 'u', 'u.uid = n.uid');		
+		$query -> leftJoin('users_roles', 'ur', 'ur.uid = u.uid');
+		
+
+		$query				
+		->condition('ur.rid', 4, '=')
+		->condition('n.type', $conditions['job_type'], 'IN')		
+		->condition('n.created', time()-$conditions['timepost'],'>');
+		if(isset($conditions['choose'])) {
+		  $query->condition('n.nid', $conditions['choose'], 'IN');
+		}
+		$query -> groupBy('n.uid');		
+		
+		if(isset($conditions['sortby']) && ($conditions['sortby'] == 'date')){
+			$query->orderby('n.created', 'desc');
+		}
+
+		$find = $query->limit(10)->execute();
+		
+		$results = array();		
+	}
+	
+
+	foreach ($find as $item) {
+
+		// Build the node body.
+		$node = node_load($item->sid);
+		node_build_content($node, 'search_result');
+		$node->body = drupal_render($node->content);
+
+		// Fetch comments for snippet.
+		$node->rendered .= ' ' . module_invoke('comment', 'node_update_index', $node);
+		// Fetch terms for snippet.
+		$node->rendered .= ' ' . module_invoke('taxonomy', 'node_update_index', $node);
+
+		$extra = module_invoke_all('node_search_result', $node);
+
+		$results[] = array(
+				'link' => url('node/' . $item->sid, array('absolute' => TRUE)),
+				'type' => check_plain(node_type_get_name($node)),
+				'title' => $node->title,
+				'user' => theme('username', array('account' => $node)),
+				'date' => $node->changed,
+				'node' => $node,
+				'extra' => $extra,
+				//'score' => $item->calculated_score,
+				//'snippet' => search_excerpt($keys, $node->body),
+		);
+	}
+	return $results;
+}
+
+function cassowary_search_type_job_array($types = NULL) {
+	  if(isset($types['facebook']) && $types['facebook'] == 1){ 
+	    $job_type[] = 2;
+	  }
+	  if(isset($types['twitter']) && $types['twitter'] == 1){  
+	    $job_type[] = 3;
+	  }
+	  if(isset($types['articles']) && $types['articles'] == 1){
+	    $job_type[] = 1;
+	  }  
+	  if(isset($types['blogging']) && $types['blogging'] == 1){   
+	    $job_type[] = 0;
+	  }  
+	  if(isset($job_type)){
+	    return $job_type;
+	  } else {
+	  	return NULL;
+	  }
+}
+
+function cassowary_search_job($sid = NULL, $action = NULL) {
+  global $user;
+  $data_filter = array();
+  if(($action == "relevance") || ($action == "date")) {
+  	unset($sid);
+  }  
+  if(isset($sid)){
+  	
+  	$query = db_select('cassowary_search_save','cssave');
+  	$query->fields('cssave', array('data', 'uid'));
+  	$query->condition('cssave.sid', arg(1), '=');
+  	$select = $query->execute()->fetchAssoc(); 
+  	
+  	if($user->uid == $select['uid']){
+  		if(isset($action) && $action == 'delete') {
+  			$query_delete = db_delete('cassowary_search_save');
+  			$query_delete->condition('sid', $sid);
+  			$query_delete->execute();
+  			unset($sid);
+  		}	
+  	} else {
+  	  unset($sid);	
+  	}	
+  }
+  
+  if(isset($sid)){
+  	
+  	$query = db_select('cassowary_search_save','cssave');
+  	$query->fields('cssave', array('data'));
+  	$query->condition('cssave.sid', arg(1), '=');
+  	$select = $query->execute()->fetchAssoc();
+  
+  	$filter = unserialize($select['data']);
+  	
+  	if(isset($filter['what'])){
+  		if($filter['what'] != ""){
+  			$data_filter['search_job']['what'] = $filter['what'];
+  		} else {
+  			unset($_SESSION['search_job']['redirect']);
+  		}
+  	}  	
+  	
+  	if(isset($filter['job_type']['facebook']) && $filter['job_type']['facebook'] == 1){
+  		$job_type[] = 2;
+  		$data_filter['search_job']['job_type']['facebook'] = $filter['job_type']['facebook'];
+  	}
+  	if(isset($filter['job_type']['twitter']) && $filter['job_type']['twitter'] == 1){
+  		$job_type[] = 3;
+  		$data_filter['search_job']['job_type']['twitter'] = $filter['job_type']['twitter'];
+  	}
+  	if(isset($filter['job_type']['articles']) && $filter['job_type']['articles'] == 1){
+  		$data_filter['search_job']['job_type']['articles'] = $filter['job_type']['articles'];  		
+  		$job_type[] = 1;
+  	}
+  	if(isset($filter['job_type']['blogging']) && $filter['job_type']['blogging'] == 1){
+  		$data_filter['search_job']['job_type']['blogging'] = $filter['job_type']['blogging'];
+  		$job_type[] = 0;
+  	}  	
+  	if(!isset($job_type)) {
+  		$job_type = array(0,1,2,3);
+  	}  	
+
+  	if(isset($filter['dateposted'])){
+  		switch ($filter['dateposted']){
+  			case 'last24h':
+  				$timepost = 86400;
+  				break;
+  			case 'last7d':
+  				$timepost = 604800;
+  				break;
+  			case 'last14d':
+  				$timepost = 1209600;
+  				break;
+  			case 'last30d':
+  				$timepost = time();
+  				break;
+  		}
+  		$data_filter['search_job']['dateposted'] = $filter['dateposted'];
+  	} else {
+  		$data_filter['search_job']['dateposted'] = 'last30d';
+  		$timepost = time();
+  	} 
+  		
+  	if(isset($filter['sortby'])){
+  		$data_filter['search_job']['sortby'] = $filter['sortby'];
+  		$conditions['sortby'] = $data_filter['search_job']['sortby'];
+  	} else {
+  		$data_filter['search_job']['sortby'] = 'date';
+  		$conditions['sortby'] = $data_filter['search_job']['sortby'];
+  	}
+  	
+  	if(isset($filter['industry'])){
+  		$data_filter['search_job']['industry'] = $filter['industry'];
+  		$industry = $_SESSION['search_job']['industry'];
+  	}
+  	 
+  	if(isset($filter['company'])){
+  		$data_filter['search_job']['company'] = $filter['company'];
+  		$company = $filter['company'];
+  		$conditions['company'] = $company;
+  	}
+  	 
+  	$conditions['job_type'] = $job_type;
+  	$conditions['timepost'] = $timepost;
+  	
+  	if(isset($industry) and $industry != ''){
+  		$conditions['industry'] = $industry;
+  	}
+  	if(isset($company) and $company != ''){
+  		$conditions['company'] = $company;
+  	}  	
+  	
+  	
+  } else {	  
+	  if((isset($_SESSION['search_job']['sortby'])) && (!isset($action)))  {
+	  	$data_filter['search_job']['sortby'] = $_SESSION['search_job']['sortby'];
+	  	$conditions['sortby'] = $data_filter['search_job']['sortby'];
+	  } elseif($action == "relevance") {
+	  	$data_filter['search_job']['sortby'] = "relevance";
+	  	$conditions['sortby'] = $data_filter['search_job']['sortby'];	  	
+	  }
+	
+	  if(isset($_SESSION['search_job']['what'])){	
+	  	if($_SESSION['search_job']['what'] != ""){
+	  	  $what = cassowary_search_normal_what($_SESSION['search_job']['what']);
+	  	  if($what != "") {
+	  	  	$data_filter['search_job']['what'] = $what;
+	  	  } else {
+	  	  	unset($_SESSION['search_job']['redirect']);	  	  	
+	  	  }
+
+	  	} else {
+	  		unset($_SESSION['search_job']['redirect']);
+	  	}
+	    
+	  }
+	  if(isset($_SESSION['search_job']['where'])){
+	  	//dsm($_SESSION['search_job']['where']);
+	  	$data_filter['search_job']['where'] = $_SESSION['search_job']['where']; 	
+	  }
+	  
+	 // dpm($left);
+	  $middle = "";
+	  //$middle = array();
+	
+	  $pager = "";
+	
+	  if(isset($_SESSION['search_job']['job_type']['facebook']) && $_SESSION['search_job']['job_type']['facebook'] == 1){ 
+	    $data_filter['search_job']['job_type']['facebook'] = $_SESSION['search_job']['job_type']['facebook'];
+	    $job_type[] = 2;
+	  }
+	  if(isset($_SESSION['search_job']['job_type']['twitter']) && $_SESSION['search_job']['job_type']['twitter'] == 1){  
+	    $data_filter['search_job']['job_type']['twitter'] = $_SESSION['search_job']['job_type']['twitter'];
+	    $job_type[] = 3;
+	  }
+	  if(isset($_SESSION['search_job']['job_type']['articles']) && $_SESSION['search_job']['job_type']['articles'] == 1){
+	    $data_filter['search_job']['job_type']['articles'] = $_SESSION['search_job']['job_type']['articles'];
+	    $job_type[] = 1;
+	  }  
+	  if(isset($_SESSION['search_job']['job_type']['blogging']) && $_SESSION['search_job']['job_type']['blogging'] == 1){  
+	    $data_filter['search_job']['job_type']['blogging'] = $_SESSION['search_job']['job_type']['blogging']; 
+	    $job_type[] = 0;
+	  }    
+	  
+	  if(!isset($job_type)) {
+	  	$job_type = array(0,1,2,3);
+	  }
+	  
+	  if(isset($_SESSION['search_job']['dateposted'])){
+	  	switch ($_SESSION['search_job']['dateposted']){
+	  		case 'last24h':
+				$timepost = 86400; 
+	  			break;
+	  		case 'last7d':
+	  			$timepost = 604800;
+	  			break;
+	  		case 'last14d':
+	  			$timepost = 1209600;
+	  			break;  
+	  		case 'last30d':
+	  			$timepost = time();
+	  			break;   			    
+	  	}
+	  	$data_filter['search_job']['dateposted'] = $_SESSION['search_job']['dateposted'];
+	  } else {
+	  	$data_filter['search_job']['dateposted'] = 'last30d';
+	  	$timepost = time();
+	  }
+	  
+	  if(isset($_SESSION['search_job']['sortby'])){
+	  	$data_filter['search_job']['sortby'] = $_SESSION['search_job']['sortby'];
+	  } else {
+	  	$data_filter['search_job']['sortby'] = 'date';
+	  }
+	  if(isset($_SESSION['search_job']['industry'])){
+	  	$data_filter['search_job']['industry'] = $_SESSION['search_job']['industry'];
+	  	$industry = $_SESSION['search_job']['industry'];
+	  }
+	  
+	  if(isset($_SESSION['search_job']['company'])){
+	  	$data_filter['search_job']['company'] = $_SESSION['search_job']['company'];
+	  	$company = $_SESSION['search_job']['company'];
+	  	$conditions['company'] = $company;
+	  }
+	  
+	  $conditions['job_type'] = $job_type;
+	  $conditions['timepost'] = $timepost;
+	
+	  if(isset($industry) and $industry != ''){
+	  	$conditions['industry'] = $industry;
+	  }
+	  if(isset($company) and $company != ''){
+	    $conditions['company'] = $company;
+	  }
+  }  
+
+  $left = render(drupal_get_form('cassowary_search_left_author_form',$data_filter));
+  $middle = '';
+
+    if(!isset($data_filter['search_job']['what'])){  
+ 	    $query = db_select('node', 'n');    
+
+	    $query
+	    ->fields('n', array('nid', 'created'))
+	    ->condition('n.type', 'job', '=');
+	    $query -> leftJoin('field_data_field_job_type', 'job_type', 'n.nid = job_type.entity_id');
+	    $query -> leftJoin('field_data_field_industry', 'industry', 'n.nid = industry.entity_id');
+	    $query -> leftJoin('field_data_field_company_text', 'company', 'n.nid = company.entity_id');
+	    if(isset($company) and $company != ''){
+	    	$query->condition('field_company_text_value', $company, '=');
+	    }	      
+	    
+	    $query 
+	      ->condition('job_type.entity_type', 'node')
+	      ->condition('job_type.bundle', 'job')
+	      ->condition('job_type.field_job_type_value', $job_type, 'IN')
+	      ->condition('n.created', time()-$timepost,'>');
+	    
+	    if(isset($industry) and $industry != ''){    		
+	      $query->condition('field_industry_value', $industry, '=');
+	    }
+	    
+	    $query->orderby('n.created', 'desc');
+
+	    $select = $query->extend('PagerDefault')->limit(10)->execute();
+
+	 
+	  $number = 0;
+	  $middle = '';
+	  foreach ($select as $row) { 		  	
+	  	$node = node_load($row->nid);
+	  	
+	  	$field_company = field_view_field('node', $node, 'field_company');
+	  	
+	  	$job_string['number'] = $number;
+	  	$job_string['title'] = l($node->title,'node/' . $node->nid);
+	  	$job_string['price'] = drupal_render(field_view_field('node', $node, 'field_price'));
+	  	$job_string['description'] = drupal_render(field_view_field('node', $node, 'field_description'));
+	  	
+	  	$days = (time() - $node->created)/86400;
+	  	if($days < 1) $ago = "Posted 1 day ago";
+	  	elseif($days < 7) $ago = "Posted 7 days ago";
+	  	elseif($days < 14) $ago = "Posted 14 days ago";
+	  	else $ago = "Posted 30+ days ago";
+	
+	  	
+	  	$job_string['created'] = $ago;
+	  	$middle .= theme('search_job_string', array('job_string'=>$job_string));
+
+	  	$number++;
+	  }
+
+	    
+  }	else {
+  	$result_search = search_data($data_filter['search_job']['what'], 'cassowary_search', $conditions);
+  	$number = 0;
+  	foreach ($result_search['#results'] as $row) {
+  		$node = node_load($row['node']->nid);
+  		
+  		$job_string['number'] = $number;
+  		$job_string['title'] = l($node->title,'node/' . $node->nid);
+  		$job_string['price'] = drupal_render(field_view_field('node', $node, 'field_price'));
+  		$job_string['description'] = drupal_render(field_view_field('node', $node, 'field_description'));
+  		
+  		$days = (time() - $node->created)/86400;
+  		if($days < 1) $ago = "Posted 1 day ago";
+  		elseif($days < 7) $ago = "Posted 7 days ago";
+  		elseif($days < 14) $ago = "Posted 14 days ago";
+  		else $ago = "Posted 30+ days ago";
+  		
+  		
+  		$job_string['created'] = $ago;
+  		$middle .= theme('search_job_string', array('job_string'=>$job_string));
+  		$number++;  			
+  	}
+  	unset($_SESSION['search_job']['redirect']);
+  	
+  }
+  
+  if(!isset($data_filter['search_job']['what'])){
+    $show_result = cassowary_show_result();
+  } else {
+  	$show_result = cassowary_show_result($data_filter['search_job']['what']);
+  }
+  $sort_by = cassowary_search_sort_link();
+  //dsm($sort_by);
+  $pager = theme('pager');
+  $pager_count = pager_count_job($number);
+  $right = '';
+  $output = theme('search_job', array('left'=>$left, 'middle'=>$middle, 'pager'=>$pager, 'right'=>$right, 'pager_count'=>$pager_count, 'show_result'=>$show_result, 'sort_by'=>$sort_by));
+  
+  return $output;	
+}
+
+function cassowary_search_resume($sid = NULL, $action = NULL) {
+  
+  global $user;
+    if(($action == "relevance") || ($action == "date")) {
+  	unset($sid);
+  }  
+  $conditions['resume'] = 1;
+  $data_filter = array();
+  //$sid = arg(1); $action = arg(2);
+  if(isset($sid)){
+  	//dpm('попал сюдаэ');
+  	$query = db_select('cassowary_search_save','cssave');
+  	$query->fields('cssave', array('data', 'uid'));
+  	$query->condition('cssave.sid', arg(1), '=');
+  	$select = $query->execute()->fetchAssoc(); 
+  	//dpm($select);
+  	if($user->uid == $select['uid']){
+  		if(isset($action) && $action == 'delete') {
+  			$query_delete = db_delete('cassowary_search_save');
+  			$query_delete->condition('sid', $sid);
+  			$query_delete->execute();
+  			unset($sid);
+  		}	
+  	} else {
+  	  unset($sid);	
+  	}	
+  }
+  
+  if(isset($sid)){
+  	//dpr('sdfsdfsdf');
+  	$query = db_select('cassowary_search_save','cssave');
+  	$query->fields('cssave', array('data'));
+  	$query->condition('cssave.sid', arg(1), '=');
+  	$select = $query->execute()->fetchAssoc();
+  
+  	$filter = unserialize($select['data']);
+  	
+  	if(isset($filter['what'])){
+  		if($filter['what'] != ""){
+  			$data_filter['search_job']['what'] = $filter['what'];
+  		} else {
+  			unset($_SESSION['search_job']['redirect']);
+  		}
+  	}  	
+  	
+  	if(isset($filter['job_type']['facebook']) && $filter['job_type']['facebook'] == 1){
+  		$job_type[] = 'facebook_post';
+  		$data_filter['search_job']['job_type']['facebook'] = $filter['job_type']['facebook'];
+  	}
+  	if(isset($filter['job_type']['twitter']) && $filter['job_type']['twitter'] == 1){
+  		$job_type[] = 'tweet';
+  		$data_filter['search_job']['job_type']['twitter'] = $filter['job_type']['twitter'];
+  	}
+  	if(isset($filter['job_type']['articles']) && $filter['job_type']['articles'] == 1){
+  		$data_filter['search_job']['job_type']['articles'] = $filter['job_type']['articles'];  		
+  		$job_type[] = 'article';
+  	}
+  	if(isset($filter['job_type']['blogging']) && $filter['job_type']['blogging'] == 1){
+  		$data_filter['search_job']['job_type']['blogging'] = $filter['job_type']['blogging'];
+  		$job_type[] = 'blurb';
+  	}  	
+  	if(!isset($job_type)) {
+  		$job_type = array('facebook_post', 'tweet', 'article', 'blurb');
+  	}  	
+
+  	if(isset($filter['dateposted'])){
+  		switch ($filter['dateposted']){
+  			case 'last24h':
+  				$timepost = 86400;
+  				break;
+  			case 'last7d':
+  				$timepost = 604800;
+  				break;
+  			case 'last14d':
+  				$timepost = 1209600;
+  				break;
+  			case 'last30d':
+  				$timepost = time();
+  				break;
+  		}
+  		$data_filter['search_job']['dateposted'] = $filter['dateposted'];
+  	} else {
+  		$data_filter['search_job']['dateposted'] = 'last30d';
+  		$timepost = time();
+  	} 
+  	if(isset($filter['sortby'])){
+  		$data_filter['search_job']['sortby'] = $filter['sortby'];
+  		$conditions['sortby'] = $data_filter['search_job']['sortby'];
+  	} else {
+  		$data_filter['search_job']['sortby'] = 'date';
+  		$conditions['sortby'] = $data_filter['search_job']['sortby'];
+  	}
+
+  	/*
+  	if(isset($filter['industry'])){
+  		$data_filter['search_job']['industry'] = $filter['industry'];
+  		$industry = $_SESSION['search_job']['industry'];
+  	}
+  	 
+  	if(isset($filter['company'])){
+  		$data_filter['search_job']['company'] = $filter['company'];
+  		$company = $filter['company'];
+  		$conditions['company'] = $company;
+  	}*/
+  	 
+  	$conditions['job_type'] = $job_type;
+  	$conditions['timepost'] = $timepost;
+  	
+  	/*if(isset($industry) and $industry != ''){
+  		$conditions['industry'] = $industry;
+  	}
+  	if(isset($company) and $company != ''){
+  		$conditions['company'] = $company;
+  	}*/  	
+  	
+  	
+  } else {	
+	  if((isset($_SESSION['search_job']['sortby'])) && (!isset($action)))  {
+	  		$data_filter['search_job']['sortby'] = $_SESSION['search_job']['sortby'];
+	  		$conditions['sortby'] = $data_filter['search_job']['sortby'];
+	  } elseif($action == "relevance") {
+	  		$data_filter['search_job']['sortby'] = "relevance";
+	  		$conditions['sortby'] = $data_filter['search_job']['sortby'];
+	  }  
+	  
+	  if(isset($_SESSION['search_job']['what'])){	
+	  	if($_SESSION['search_job']['what'] != ""){
+	  	  //$data_filter['search_job']['what'] = $_SESSION['search_job']['what'];
+	      //$result_search = search_data($_SESSION['search_job']['what'], 'cassowary_search');
+	      //$result_search = search_data($data_filter['search_job']['what'], 'cassowary_search');
+	  	  $what = cassowary_search_normal_what($_SESSION['search_job']['what']);
+	  	  if($what != "") {
+	  	  	$data_filter['search_job']['what'] = $what;
+	  	  } else {
+	  	  	unset($_SESSION['search_job']['redirect']);
+	  	  }	  	
+	  	
+	  	
+	  	} else {
+	  		unset($_SESSION['search_job']['redirect']);
+	  	}
+	    
+	  }
+	  if(isset($_SESSION['search_job']['where'])){
+	  	//dsm($_SESSION['search_job']['where']);
+	  	$data_filter['search_job']['where'] = $_SESSION['search_job']['where']; 	
+	  }
+	  
+	 // dpm($left);
+	  $middle = "";
+	  //$middle = array();
+	
+	  $pager = "";
+
+	  if(isset($_SESSION['search_job']['job_type']['facebook']) && $_SESSION['search_job']['job_type']['facebook'] == 1){ 
+	    $data_filter['search_job']['job_type']['facebook'] = $_SESSION['search_job']['job_type']['facebook'];
+	    $job_type[] = 'facebook_post';
+	  }
+	  if(isset($_SESSION['search_job']['job_type']['twitter']) && $_SESSION['search_job']['job_type']['twitter'] == 1){  
+	    $data_filter['search_job']['job_type']['twitter'] = $_SESSION['search_job']['job_type']['twitter'];
+	    $job_type[] = 'tweet';
+	  }
+	  if(isset($_SESSION['search_job']['job_type']['articles']) && $_SESSION['search_job']['job_type']['articles'] == 1){
+	    $data_filter['search_job']['job_type']['articles'] = $_SESSION['search_job']['job_type']['articles'];
+	    $job_type[] = 'article';
+	  }  
+	  if(isset($_SESSION['search_job']['job_type']['blogging']) && $_SESSION['search_job']['job_type']['blogging'] == 1){  
+	    $data_filter['search_job']['job_type']['blogging'] = $_SESSION['search_job']['job_type']['blogging']; 
+	    $job_type[] = 'blurb';
+	  }    
+	  
+	  if(!isset($job_type)) {
+	  	$job_type = array('facebook_post', 'tweet', 'article', 'blurb');
+	  }
+	  
+	  if(isset($_SESSION['search_job']['dateposted'])){
+	  	switch ($_SESSION['search_job']['dateposted']){
+	  		case 'last24h':
+				$timepost = 86400; 
+	  			break;
+	  		case 'last7d':
+	  			$timepost = 604800;
+	  			break;
+	  		case 'last14d':
+	  			$timepost = 1209600;
+	  			break;  
+	  		case 'last30d':
+	  			$timepost = time();
+	  			break;   			    
+	  	}
+	  	$data_filter['search_job']['dateposted'] = $_SESSION['search_job']['dateposted'];
+	  } else {
+	  	$data_filter['search_job']['dateposted'] = 'last30d';
+	  	$timepost = time();
+	  }
+	  
+	  if(isset($_SESSION['search_job']['sortby'])){
+	  	$data_filter['search_job']['sortby'] = $_SESSION['search_job']['sortby'];
+	  } else {
+	  	$data_filter['search_job']['sortby'] = 'date';
+	  }
+	  	
+	  /*if(isset($_SESSION['search_job']['industry'])){
+	  	$data_filter['search_job']['industry'] = $_SESSION['search_job']['industry'];
+	  	$industry = $_SESSION['search_job']['industry'];
+	  }
+	  
+	  if(isset($_SESSION['search_job']['company'])){
+	  	$data_filter['search_job']['company'] = $_SESSION['search_job']['company'];
+	  	$company = $_SESSION['search_job']['company'];
+	  	$conditions['company'] = $company;
+	  }*/
+	  
+	  $conditions['job_type'] = $job_type;
+	  $conditions['timepost'] = $timepost;
+	
+	  if(isset($industry) and $industry != ''){
+	  	$conditions['industry'] = $industry;
+	  }
+	  if(isset($company) and $company != ''){
+	    $conditions['company'] = $company;
+	  }
+  }  
+
+  $left = render(drupal_get_form('cassowary_search_left_author_resume_form',$data_filter));
+  $middle = '';
+  //$rigth = render(drupal_get_form('cassowary_search_save_form'));
+  //if(!isset($_SESSION['search_job']['redirect']) && !isset($data_filter['search_job']['what'])){
+    if(!isset($data_filter['search_job']['what'])){  	
+	    $query = db_select('users', 'u');    
+	    //$query -> leftJoin('field_data_field_job_type', 'job_type', 'n.nid = job_type.entity_id');
+	    
+	    $query -> fields('u', array('uid'));
+	    $query -> innerJoin('users_roles', 'ur', 'ur.uid = u.uid');
+	    $query -> innerJoin('node', 'n', 'n.uid = u.uid');
+
+	    $query 
+
+	      ->condition('ur.rid', 4, '=')
+	      ->condition('n.type', $job_type, 'IN')
+	      ->condition('n.created', time()-$timepost,'>');
+
+	    $query -> distinct();
+	    $query -> orderby('n.created', 'desc');
+	    //dsm($job_type);dsm($timepost);
+	    //$query ->extend('PagerDefault');
+	    //dpr($query);
+	    $select = $query->extend('PagerDefault')->limit(10)->execute();
+	 
+	  $number = 0;
+	  $middle = '';
+	  foreach ($select as $row) {
+	  	 		  	
+	  	$user_prof = user_load($row->uid);
+	  	$account = user_view($user_prof);
+	  	//$field_company = field_view_field('node', $node, 'field_company');
+	  	
+	  	$resume_string['number'] = $number;
+	  	$resume_string['name'] = l($user_prof->name,'user/' . $row->uid);
+	  	$resume_string['avatar'] = render($account['field_avatar']);
+	  	$resume_string['contact_me'] = l('Contact Me','messages_private/direct_conversation/' . $row->uid);
+	  	$resume_string['specialization'] = render($account['field_specialization']);
+	  	$resume_string['bio'] = render($account['field_bio']);
+	  	$resume_string['location'] = render($account['field_location']);
+	  	$middle .= theme('search_resume_string', array('resume_string'=>$resume_string));
+	  	
+	  	//$middle .= '</div>';
+	  	$number++;
+	  }
+
+  }	else {
+  	$result_search = search_data($data_filter['search_job']['what'], 'cassowary_search', $conditions);
+  	$number = 0; //$i = 0;
+  	$resultall = array(); 
+  	foreach ($result_search['#results'] as $row) {
+  	    //dsm($row);	
+  		$user_prof = user_load($row['node']->uid);
+  		$resultall[] = $row['node']->uid;
+  		//$resultall[$i]['created'] = $row['node']->created;
+  		//$i++;
+  	}
+  	foreach ($resultall as $row) {
+  		$user_prof = user_load($row);
+  		$account = user_view($user_prof);
+  		$resume_string['number'] = $number;
+  		$resume_string['name'] = l($user_prof->name,'user/' . $row);  		
+  		$resume_string['avatar'] = render($account['field_avatar']);
+  		$resume_string['contact_me'] = l('Contact Me', 'messages_private/direct_conversation/' . $row);
+  		$resume_string['specialization'] = render($account['field_specialization']);
+  		$resume_string['bio'] = render($account['field_bio']);
+  		$resume_string['location'] = render($account['field_location']);
+  		$middle .= theme('search_resume_string', array('resume_string'=>$resume_string));
+
+  		$number++;  		
+	
+  	}
+  	
+  	unset($_SESSION['search_job']['redirect']);
+
+  }
+  
+  if(!isset($data_filter['search_job']['what'])){
+  	$show_result = cassowary_show_result();
+  } else {
+  	$show_result = cassowary_show_result($data_filter['search_job']['what']);
+  }
+  $sort_by = cassowary_search_sort_link();
+  
+  $pager = theme('pager');
+  $pager_count = pager_count_resume($number);
+  $right = '';
+  //$right = cassowary_search_save_variants();
+  //dsm($middle);dsm($right);
+  //$output = theme('search_resume', array('left'=>$left, 'middle'=>$middle, 'pager'=>$pager, 'right'=>$right, 'pager_count'=>$pager_count, 'show_result'=>$show_result, 'sort_by'=>$sort_by));
+  $output = theme('search_resume', array('left'=>$left, 'middle'=>$middle, 'pager'=>$pager, 'right'=>$right, 'pager_count'=>$pager_count, 'show_result'=>$show_result, 'sort_by'=>NULL));
+  return $output;	
+	
+}
+
+/**
+ * Returns html content of pager
+ */
+function _ds_hooks_dashboard_pager($project_count) {
+	pager_default_initialize($project_count, 2);
+	$pager = theme(
+			'pager',
+			array(
+					'quantity' => 9,
+			)
+	);
+	return $pager;
+}
+
+
+
+function cassowary_search_left_writer_form(){
+	$form['searchleftwriter'] = array(
+			'#type' => 'fieldset',
+			'#title' => t('Search'),
+	);
+	$form['searchleftwriter']['sortby'] = array(
+			'#type' => 'radios',
+			'#options' => array(
+					'relevance'   => t('Relevance'),
+					'date' => t('Date'),
+			),
+			'#title' => t('Sort by')
+	);
+	$form['searchleftwriter']['facebook'] = array(
+			'#type' => 'checkbox',
+			'#title' => t('Facebook'),
+	);
+	$form['searchleftwriter']['twitter'] = array(
+			'#type' => 'checkbox',
+			'#title' => t('Twitter'),
+	);
+	$form['searchleftwriter']['blogging'] = array(
+			'#type' => 'checkbox',
+			'#title' => t('Blogging'),
+	);
+	$form['searchleftwriter']['articles'] = array(
+			'#type' => 'checkbox',
+			'#title' => t('Articles'),
+	);
+	$form['searchleftwriter']['dateposted'] = array(
+			'#type' => 'radios',
+			'#options' => array(
+					'last24h'   => t('Last 24 hours'),
+					'last7d' => t('Last 7 days'),
+					'last14d'   => t('Last 14 days'),
+					'last30d' => t('Last 30 days'),
+			),
+			'#title' => t('Date posted')
+	);
+	$form['submitleftwriter'] = array(
+			'#type' => 'submit',
+			'#value' => 'Search for Writers',
+	);
+	return $form;
+}
+/**
+ * Implements hook_theme().
+ */
+
+function cassowary_search_theme($existing, $type, $theme, $path) {
+	
+  return array(
+  		'search_job' => array(
+  				'variables' => array('left'=>NULL, 'middle'=>NULL, 'right'=>NULL, 'pager'=>NULL, 'pager_count'=>NULL, 'show_result' => NULL, 'sort_by' => NULL),
+  				'template' => 'cassowary-search-job',
+  				'path' => $path,
+  		),
+  		'search_job_string' => array(
+  				'variables' => array('job_string'=>NULL),
+  				'template' => 'cassowary-search-job-string',
+  				'path' => $path,
+  		),  		
+  		'search_resume' => array(
+  				'variables' => array('left'=>NULL, 'middle'=>NULL, 'right'=>NULL, 'pager'=>NULL, 'pager_count'=>NULL, 'show_result' => NULL, 'sort_by' => NULL),  				
+  				'template' => 'cassowary-search-resume',
+  				'path' => $path,
+  		),  
+  		'search_resume_string' => array(
+  				'variables' => array('resume_string'=>NULL),
+  				'template' => 'cassowary-search-resume-string',
+  				'path' => $path,
+  		)  				
+  );  
+}
+	
+/**
+ * Implements hook_block_info().
+ *
+ * This hook declares what blocks are provided by the module.
+ */
+function cassowary_search_block_info() {
+  $blocks['cassowarysearch'] = array(
+    'info' => t('Cassowary search'),
+    'status' => TRUE, 
+    'region' => '-1',
+  );
+  $blocks['cassowarysearchjob'] = array(
+  		'info' => t('Cassowary search job'),
+  		'status' => TRUE,
+  		'region' => '-1',
+  );
+  $blocks['cassowarysearchresume'] = array(
+  		'info' => t('Cassowary search resume'),
+  		'status' => TRUE,
+  		'region' => '-1',
+  );    
+  $blocks['cassowarysearchleftauthor'] = array(
+    'info' => t('Cassowary search left author'),
+    'status' => TRUE, 
+    'region' => '-1',
+  );
+  $blocks['cassowarysearchleftemployer'] = array(
+    'info' => t('Cassowary search left employer'),
+    'status' => TRUE, 
+    'region' => '-1',
+  );      
+  return $blocks;
+}
+
+/**
+ * Implements hook_block_view().
+ *
+ * This hook generates the contents of the blocks themselves.
+ */
+function cassowary_search_block_view($delta = '') {
+	
+  //The $delta parameter tells us which block is being requested.
+  switch ($delta) {
+    case 'cassowarysearch':
+      $block['subject'] = t('Cassowary search');
+      $block['content'] = drupal_get_form('cassowary_search_form');
+      drupal_add_css(drupal_get_path('module', 'cassowary_search') . '/cassowary_search.css');
+      break;
+    case 'cassowarysearchjob':
+      $block['subject'] = t('Cassowary search job');
+      $block['content'] = drupal_get_form('cassowary_search_job_form');
+      drupal_add_css(drupal_get_path('module', 'cassowary_search') . '/cassowary_search.css');
+      break;  
+    case 'cassowarysearchresume':
+      $block['subject'] = t('Cassowary search resume');
+      $block['content'] = drupal_get_form('cassowary_search_resume_form');
+      drupal_add_css(drupal_get_path('module', 'cassowary_search') . '/cassowary_search.css');
+      break;          
+    case 'cassowarysearchleftauthor':
+      $block['subject'] = t('Cassowary search left author');
+      $block['content'] = drupal_get_form('cassowary_search_left_author_form');
+      break;
+    case 'cassowarysearchleftemployer':
+      $block['subject'] = t('Cassowary search left employer');
+      $block['content'] = drupal_get_form('cassowary_search_left_employer_form');
+      break;            
+  }
+  return $block;
+}
+
+function cassowary_search_form(){
+  $form['search'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Search'),
+  );
+  $form['search']['what'] = array(
+    '#type' => 'textfield',
+    '#title' => t('What are you searching for?'),
+  	'#placeholder' => t('For example, "medical blogger"...'),
+  );
+  $form['search']['method'] = array(
+  		'#type' => 'radios',
+  		'#options' => array(
+  				'job' => t('Jobs'), 				
+  				'write'   => t('Portfolios'),
+  		),
+  		'#title' => t('Date posted'),
+  		'#attributes' => array('class' => array('cassowary-list-options')),
+  		'#default_value' => 'job',
+  );  
+  $form['submit'] = array(
+    '#type' => 'submit',
+    '#value' => 'Search',
+  );
+  return $form;	
+}
+
+function cassowary_search_form_submit($form, &$form_state){
+	$_SESSION['search_job']['what'] = $form_state['values']['what'];
+	$_SESSION['search_job']['sortby'] = 'date';
+	if($form_state['values']['method'] == 'write') {
+		$form_state['redirect'] = 'search_resume';		
+	} else {
+		$form_state['redirect'] = 'search_job';		
+	}
+	//search_resume
+	
+}
+
+function cassowary_search_resume_form(){
+	
+	$form['searchresume'] = array(
+			'#type' => 'fieldset',
+			'#title' => t('Search'),
+	);
+	$form['searchresume']['what'] = array(
+			'#type' => 'textfield',
+			'#title' => t('What?'),
+	);
+	$form['searchresume']['where'] = array(
+			'#type' => 'textfield',
+			'#title' => t('Where?'),
+	);
+	$form['submitsearchresume'] = array(
+			'#type' => 'submit',
+			'#value' => 'Search',
+	);
+	return $form;
+}
+
+function cassowary_search_job_form($form, &$form_state){
+
+	$form['searchjob'] = array(
+			'#type' => 'fieldset',
+			'#title' => t('Search'),
+	);	
+	$form['searchjob']['what'] = array(
+			'#type' => 'textfield',
+			//'#title' => t('What?'),
+			'#placeholder' => t('What?'),
+	);
+	$form['searchjob']['where'] = array(
+			'#type' => 'textfield',
+			//'#title' => t('Where?'),
+			'#placeholder' => t('Where?'),
+	);
+	$form['submitsearchjob'] = array(
+			'#type' => 'submit',
+			'#value' => 'Search',
+	);	
+	return $form;
+}
+
+function cassowary_search_job_form_submit($form, &$form_state){
+	
+	$_SESSION['search_job']['what'] = $form_state['values']['what'];
+	$_SESSION['search_job']['where'] = $form_state['values']['where'];
+	$_SESSION['search_job']['redirect'] = 1;
+	$form_state['redirect'] = 'search_job';
+}
+
+function cassowary_search_left_author_form($form, &$form_state, $data_filter){  
+  global $user;
+  $form['searchleftauthor'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Search'),
+  ); 
+  /*$form['searchleftauthor']['filters'] = array(
+  		'#type' => 'fieldset',
+  		'#title' => t('Filters'),
+  );*/
+  
+  if(isset($data_filter['search_job']['what'])){
+  	  $array_what = cassowary_array_what($data_filter['search_job']['what']);
+  	  //dsm($array_what);
+	  $form['searchleftauthor']['filters'] = array(
+	  		'#type' => 'tableselect',
+	  		'#title' => t('Filters'),
+	  		'#header' => $array_what['header'],	  		  		
+	  		'#options' => $array_what['options'],
+	  		'#default_value' => $array_what['def_true'],
+	  		//'#empty' => t('No saved searches.'),
+	  );
+  }
+  
+  $form['searchleftauthor']['what'] = array(
+  	'#type' => 'textfield',
+  	//'#title' => t('What'),
+  	'#placeholder' => t('What?'),
+  	'#default_value' => (isset($data_filter['search_job']['what'])?$data_filter['search_job']['what']:""),
+  );
+  $form['searchleftauthor']['where'] = array(
+  	'#type' => 'textfield',
+  	//'#title' => t('Where'),
+  	'#placeholder' => t('Where?'),
+  	'#default_value' => (isset($data_filter['search_job']['where'])?$data_filter['search_job']['where']:""),
+  );    
+  $form['searchleftauthor']['sortby'] = array(
+    '#type' => 'radios',
+    '#options' => array(
+      'relevance'   => t('Relevance'),
+      'date' => t('Date'),
+    ),
+    '#title' => t('Sort by'),
+  	'#default_value' => $data_filter['search_job']['sortby'],
+  );  
+
+  if(isset($data_filter['search_job']['company'])){
+  	$company = $data_filter['search_job']['company'];
+  } else {
+  	$company = '';
+  }    
+  $form['searchleftauthor']['companyname'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Company name'),
+  	'#autocomplete_path' => 'search_job_auto/company',
+  	'#default_value' => $company,
+  	'#element_validate' => array('cassowary_search_company_autocomplete_validate'),  		
+  );  
+  if(isset($data_filter['search_job']['industry'])){
+  	$industry = $data_filter['search_job']['industry'];
+  } else {
+  	$industry = '';
+  }
+  $form['searchleftauthor']['industry'] = array(
+    '#title' => t('Industry'),
+    '#type' => 'textfield',
+    '#autocomplete_path' => 'search_job_auto/industry',
+  	'#default_value' => $industry,
+  	'#element_validate' => array('cassowary_search_industry_autocomplete_validate'),
+   ); 
+
+  
+  $form['searchleftauthor']['facebook'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Facebook'),
+  	'#default_value' => (isset($data_filter['search_job']['job_type']['facebook'])?$data_filter['search_job']['job_type']['facebook']:''),  		
+  );  
+  $form['searchleftauthor']['twitter'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Twitter'),
+  	'#default_value' => (isset($data_filter['search_job']['job_type']['twitter'])?$data_filter['search_job']['job_type']['twitter']:''),  		
+  );   
+  $form['searchleftauthor']['blogging'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Blogging'),
+  	'#default_value' => (isset($data_filter['search_job']['job_type']['blogging'])?$data_filter['search_job']['job_type']['blogging']:''),  		
+  );
+  $form['searchleftauthor']['articles'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Articles'),
+  	'#default_value' => (isset($data_filter['search_job']['job_type']['articles'])?$data_filter['search_job']['job_type']['articles']:''),  		
+  ); 
+  $form['searchleftauthor']['dateposted'] = array(
+    '#type' => 'radios',
+    '#options' => array(
+      'last24h'   => t('Last 24 hours'),
+      'last7d' => t('Last 7 days'),
+      'last14d'   => t('Last 14 days'),
+      'last30d' => t('Last 30 days'), 
+    ),
+    '#title' => t('Date posted'),
+  	'#default_value' => $data_filter['search_job']['dateposted'],
+  );      
+  $form['submitleftauthor'] = array(
+    '#type' => 'submit',
+    '#value' => 'Search for Writers',
+  );
+  if($user->uid){
+    $form['searchsave']['name'] = array(
+      '#type' => 'textfield',
+      '#title' => t('Save name'),
+    );
+    $form['submitsave'] = array(
+  	  '#type' => 'submit',
+  	  '#value' => 'Save',
+    );
+  }   
+  return $form;	
+}
+
+function cassowary_search_left_author_form_submit($form, &$form_state){
+
+	global $user;
+    //dsm($form);dsm($form_state);
+	if($form_state['clicked_button']['#value'] == $form_state['values']['submitleftauthor']) {
+		$_SESSION['search_job']['job_type']['facebook'] = $form_state['values']['facebook'];
+		$_SESSION['search_job']['job_type']['twitter'] = $form_state['values']['twitter'];
+		$_SESSION['search_job']['job_type']['articles'] = $form_state['values']['articles'];
+		$_SESSION['search_job']['job_type']['blogging'] = $form_state['values']['blogging'];
+		//what begin
+		$what = '';
+		if(isset($form_state['values']['filters'])){			
+			foreach ($form_state['values']['filters'] as $key => $value) {
+				if((string)$value != "0"){
+				  $what .= $value .' ';	
+				}	
+			}
+		} else {
+			$_SESSION['search_job']['what'] = $form_state['values']['what'];			
+		}
+		
+		if($what == '') {
+			$_SESSION['search_job']['what'] = $form_state['values']['what'];			
+		} else {
+			$_SESSION['search_job']['what'] = $what;
+		}
+		//what end		
+		//dsm($what);
+		
+		$_SESSION['search_job']['where'] = $form_state['values']['where'];
+		
+		//if(isset($form_state['values']['companyname'])){
+		  $_SESSION['search_job']['company'] = $form_state['values']['companyname'];
+		//}
+		//if(isset($form_state['values']['industry'])){
+		  $_SESSION['search_job']['industry'] = $form_state['values']['industry'];
+		//}
+		$_SESSION['search_job']['dateposted'] = $form_state['values']['dateposted'];
+		$_SESSION['search_job']['sortby'] = $form_state['values']['sortby'];		
+	} else if($form_state['clicked_button']['#value'] == $form_state['values']['submitsave']) {
+		$_SESSION['search_job']['job_type']['facebook'] = $form_state['values']['facebook'];
+		$_SESSION['search_job']['job_type']['twitter'] = $form_state['values']['twitter'];
+		$_SESSION['search_job']['job_type']['articles'] = $form_state['values']['articles'];
+		$_SESSION['search_job']['job_type']['blogging'] = $form_state['values']['blogging'];
+		$_SESSION['search_job']['what'] = $form_state['values']['what'];
+		$_SESSION['search_job']['where'] = $form_state['values']['where'];
+		
+		$_SESSION['search_job']['company'] = $form_state['values']['companyname'];
+		$_SESSION['search_job']['industry'] = $form_state['values']['industry'];
+		$_SESSION['search_job']['dateposted'] = $form_state['values']['dateposted'];
+		$_SESSION['search_job']['sortby'] = $form_state['values']['sortby'];
+
+		$date_filter_search['what'] = $form_state['values']['what'];
+		$date_filter_search['where'] = $form_state['values']['where'];
+		$date_filter_search['company'] = $form_state['values']['companyname'];
+		$date_filter_search['industry'] = $form_state['values']['industry'];
+		$date_filter_search['dateposted'] = $form_state['values']['dateposted'];
+		$date_filter_search['sortby'] = $form_state['values']['sortby'];
+		$date_filter_search['job_type']['facebook'] = $form_state['values']['facebook'];
+		$date_filter_search['job_type']['twitter'] = $form_state['values']['twitter'];
+		$date_filter_search['job_type']['articles'] = $form_state['values']['articles'];
+		$date_filter_search['job_type']['blogging'] = $form_state['values']['blogging'];
+		$date_filter_search_serial = serialize($date_filter_search);
+		$name = $form_state['values']['name'];
+		//if(empty($name)) $name = 'Save ' . $user->name . ' ' . date('H:i:s Y.m.d');
+		if(empty($name)) $name = $form_state['values']['what'] . ' ' . date('H:i:s Y.m.d');
+		$query = db_insert('cassowary_search_save');
+		$query->fields(array(
+				'uid' => $user->uid,
+				'name' => $name,
+				'data' => $date_filter_search_serial,
+				'time' => time(),
+				'type' => 'search_job',
+		));	
+		$query->execute();
+		drupal_set_message(t('Your search has been saved. ' . l('View saved searches', 'saved-searches')));
+	}	
+	$form_state['redirect'] = 'search_job';
+}
+
+function cassowary_search_left_author_resume_form($form, &$form_state, $data_filter){
+	global $user;
+	$form['searchleftauthor'] = array(
+			'#type' => 'fieldset',
+			'#title' => t('Search'),
+	);
+	/*$form['searchleftauthor']['filters'] = array(
+			'#type' => 'fieldset',
+			'#title' => t('Filters'),
+	);*/
+	
+	if(isset($data_filter['search_job']['what'])){
+		$array_what = cassowary_array_what($data_filter['search_job']['what']);
+		$form['searchleftauthor']['filters'] = array(
+				'#type' => 'tableselect',
+				'#title' => t('Filters'),
+				'#header' => $array_what['header'],
+				'#options' => $array_what['options'],
+				'#default_value' => $array_what['def_true'],
+				//'#empty' => t('No saved searches.'),
+		);
+	}	
+	
+	$form['searchleftauthor']['what'] = array(
+			'#type' => 'textfield',
+			//'#title' => t('What'),
+			'#placeholder' => t('What?'),
+			'#default_value' => (isset($data_filter['search_job']['what'])?$data_filter['search_job']['what']:""),
+	);
+	$form['searchleftauthor']['where'] = array(
+			'#type' => 'textfield',
+			//'#title' => t('Where'),
+			'#placeholder' => t('Where?'),
+			'#default_value' => (isset($data_filter['search_job']['where'])?$data_filter['search_job']['where']:""),
+	);
+	/*$form['searchleftauthor']['sortby'] = array(
+			'#type' => 'radios',
+			'#options' => array(
+					'relevance'   => t('Relevance'),
+					'date' => t('Date'),
+			),
+			'#title' => t('Sort by'),
+			'#default_value' => $data_filter['search_job']['sortby'],
+	);*/
+
+	$form['searchleftauthor']['facebook'] = array(
+			'#type' => 'checkbox',
+			'#title' => t('Facebook'),
+			'#default_value' => (isset($data_filter['search_job']['job_type']['facebook'])?$data_filter['search_job']['job_type']['facebook']:''),
+	);
+	$form['searchleftauthor']['twitter'] = array(
+			'#type' => 'checkbox',
+			'#title' => t('Twitter'),
+			'#default_value' => (isset($data_filter['search_job']['job_type']['twitter'])?$data_filter['search_job']['job_type']['twitter']:''),
+	);
+	$form['searchleftauthor']['blogging'] = array(
+			'#type' => 'checkbox',
+			'#title' => t('Blogging'),
+			'#default_value' => (isset($data_filter['search_job']['job_type']['blogging'])?$data_filter['search_job']['job_type']['blogging']:''),
+	);
+	$form['searchleftauthor']['articles'] = array(
+			'#type' => 'checkbox',
+			'#title' => t('Articles'),
+			'#default_value' => (isset($data_filter['search_job']['job_type']['articles'])?$data_filter['search_job']['job_type']['articles']:''),
+	);
+	$form['searchleftauthor']['dateposted'] = array(
+			'#type' => 'radios',
+			'#options' => array(
+					'last24h'   => t('Last 24 hours'),
+					'last7d' => t('Last 7 days'),
+					'last14d'   => t('Last 14 days'),
+					'last30d' => t('Last 30 days'),
+			),
+			'#title' => t('Date posted'),
+			'#default_value' => $data_filter['search_job']['dateposted'],
+	);
+	$form['submitleftauthor'] = array(
+			'#type' => 'submit',
+			'#value' => 'Search for Writers',
+	);
+	if($user->uid){
+		$form['searchsave']['name'] = array(
+				'#type' => 'textfield',
+				//'#title' => t('Save name'),
+		        '#attributes' => array(
+		          'class' => array('hidden-save'),
+		        ),				
+		);
+		$form['submitsave'] = array(
+				'#type' => 'submit',
+				'#value' => 'Save',
+		        '#attributes' => array(
+		          'class' => array('hidden-save'),
+		        ),	
+		);
+	}
+	
+	$form['#attached']['css'] = array(
+			drupal_get_path('module', 'cassowary_search') . '/cassowary_search.css.' => array(
+					'group' => CSS_THEME,
+			),
+	);	
+	
+	return $form;
+}
+
+function cassowary_search_left_author_resume_form_submit($form, &$form_state){
+	//dpr($form);dpr($form_state);dpr('выполняется');
+	global $user;
+	//dpm($form);dpm($form_state);dpm('выполняется');dpm($user);
+	if($form_state['clicked_button']['#value'] == $form_state['values']['submitleftauthor']) {
+		$_SESSION['search_job']['job_type']['facebook'] = $form_state['values']['facebook'];
+		$_SESSION['search_job']['job_type']['twitter'] = $form_state['values']['twitter'];
+		$_SESSION['search_job']['job_type']['articles'] = $form_state['values']['articles'];
+		$_SESSION['search_job']['job_type']['blogging'] = $form_state['values']['blogging'];
+		
+		//what begin
+		$what = '';
+		if(isset($form_state['values']['filters'])){
+			foreach ($form_state['values']['filters'] as $key => $value) {
+				if((string)$value != "0"){
+					$what .= $value .' ';
+				}
+			}
+		} else {
+			$_SESSION['search_job']['what'] = $form_state['values']['what'];
+		}
+		
+		if($what == '') {
+			$_SESSION['search_job']['what'] = $form_state['values']['what'];
+		} else {
+			$_SESSION['search_job']['what'] = $what;
+		}
+		//dsm($what);
+		//what end		
+		
+		$_SESSION['search_job']['where'] = $form_state['values']['where'];
+
+		if(isset($form_state['values']['companyname'])){
+			$_SESSION['search_job']['company'] = $form_state['values']['companyname'];
+		}
+		if(isset($form_state['values']['industry'])){
+			$_SESSION['search_job']['industry'] = $form_state['values']['industry'];
+		}
+		$_SESSION['search_job']['dateposted'] = $form_state['values']['dateposted'];
+		$_SESSION['search_job']['sortby'] = $form_state['values']['sortby'];
+	} else if($form_state['clicked_button']['#value'] == $form_state['values']['submitsave']) {
+		$_SESSION['search_job']['job_type']['facebook'] = $form_state['values']['facebook'];
+		$_SESSION['search_job']['job_type']['twitter'] = $form_state['values']['twitter'];
+		$_SESSION['search_job']['job_type']['articles'] = $form_state['values']['articles'];
+		$_SESSION['search_job']['job_type']['blogging'] = $form_state['values']['blogging'];
+		$_SESSION['search_job']['what'] = $form_state['values']['what'];
+		$_SESSION['search_job']['where'] = $form_state['values']['where'];
+
+		//$_SESSION['search_job']['company'] = $form_state['values']['companyname'];
+		//$_SESSION['search_job']['industry'] = $form_state['values']['industry'];
+		$_SESSION['search_job']['dateposted'] = $form_state['values']['dateposted'];
+		$_SESSION['search_job']['sortby'] = $form_state['values']['sortby'];
+
+		$date_filter_search['what'] = $form_state['values']['what'];
+		$date_filter_search['where'] = $form_state['values']['where'];
+		//$date_filter_search['company'] = $form_state['values']['companyname'];
+		//$date_filter_search['industry'] = $form_state['values']['industry'];
+		$date_filter_search['dateposted'] = $form_state['values']['dateposted'];
+		$date_filter_search['sortby'] = $form_state['values']['sortby'];
+		$date_filter_search['job_type']['facebook'] = $form_state['values']['facebook'];
+		$date_filter_search['job_type']['twitter'] = $form_state['values']['twitter'];
+		$date_filter_search['job_type']['articles'] = $form_state['values']['articles'];
+		$date_filter_search['job_type']['blogging'] = $form_state['values']['blogging'];
+		$date_filter_search_serial = serialize($date_filter_search);
+		$name = $form_state['values']['name'];
+		//if(empty($name)) $name = 'Save ' . $user->name . ' ' . date('H:i:s Y.m.d');
+		if(empty($name)) $name = $form_state['values']['what'] . ' ' . date('H:i:s Y.m.d');
+		$query = db_insert('cassowary_search_save');
+		$query->fields(array(
+				'uid' => $user->uid,
+				'name' => $name,
+				'data' => $date_filter_search_serial,
+				'time' => time(),
+				'type' => 'search_resume',
+		));
+		$query->execute();
+		drupal_set_message(t('Your search has been saved. ' . l('View saved searches', 'saved-searches')));
+	}
+	$form_state['redirect'] = 'search_resume';
+}
+
+function cassowary_search_left_employer_form(){
+  $form['searchleftemployer'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Search'),
+  );
+  $form['searchleftemployer']['sortby'] = array(
+    '#type' => 'radios',
+    '#options' => array(
+      'relevance'   => t('Relevance'),
+      'date' => t('Date'),
+    ),
+    '#title' => t('Sort by')
+  );   
+  $form['searchleftemployer']['companyname'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Company name'),
+  );
+  $form['searchleftemployer']['industry'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Industry'),
+  );
+  $form['searchleftemployer']['facebook'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Facebook'),
+  ); 
+  $form['searchleftemployer']['twitter'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Twitter'),
+  );   
+  $form['searchleftemployer']['blogging'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Blogging'),
+  );
+  $form['searchleftemployer']['articles'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Articles'),
+  );    
+  $form['searchleftauthor']['dateposted'] = array(
+    '#type' => 'radios',
+    '#options' => array(
+      'last24h'   => t('Last 24 hours'),
+      'last7d' => t('Last 7 days'),
+      'last14d'   => t('Last 14 days'),
+      'last30d' => t('Last 30 days'), 
+    ),
+    '#title' => t('Date posted')
+  );    
+  $form['submitleftemployer'] = array(
+    '#type' => 'submit',
+    '#value' => 'Search for Employers',
+  );
+  return $form;	
+}
+
+function cassowary_search_industry_autocomplete_callback($string = ''){//$field_name, $string = '') {
+	$matches = array();
+	$query = db_select('field_data_field_industry', 'fdfi');
+
+	$return = $query
+	->fields('fdfi', array('field_industry_value'))
+	->condition('fdfi.field_industry_value', '%' . db_like($string) . '%', 'LIKE')
+	->range(0, 10)
+	->execute();
+	
+	foreach ($return as $row) {
+		$matches[$row->field_industry_value] = check_plain($row->field_industry_value);
+	}
+	drupal_json_output($matches);
+}
+
+function cassowary_search_industry_autocomplete_validate($element, &$form_state, $form) {
+	$value = NULL;
+	if (!empty($element['#value'])) {
+		//$state = $form_state['values'][$element['#array_parents'][0]][$element['#array_parents'][1]][$element['#array_parents'][2]]['gnstid'];
+		$query = db_select('field_data_field_industry', 'fdfi');
+		
+		$return = $query
+		->fields('fdfi', array('field_industry_value'))
+		->condition('fdfi.field_industry_value', $element['#value'], '=')
+		->range(0, 10)
+		->execute();
+		$value_return = $return->fetchAssoc();
+
+		// Try to get a match from the input string when the user didn't use the
+		// autocomplete but filled in a value manually.
+		$value = $value_return['field_industry_value'] ? $value_return['field_industry_value'] : '';
+	}
+	
+	$clicked_button = end($form_state['triggering_element']['#parents']);
+	
+	if (empty($value) && !empty($element['#value']) && (!in_array($clicked_button, array('upload_button', 'remove_button')))) {
+		form_error($element, t('!industry is not valied value.', array('!industry' => $element['#title'])));
+	}
+	else {
+		// Update the value of this element so the field can validate the product IDs.
+		form_set_value($element, $value, $form_state);
+	};	
+}
+
+function cassowary_search_company_autocomplete_callback($string = ''){
+	$matches = array();
+	
+	$query = db_select('node');
+	
+	$return = $query
+	->fields('node', array('title'))
+	->condition('node.type', 'company', '=')
+	->condition('node.title', '%' . db_like($string) . '%', 'LIKE')
+	->range(0, 10)
+	->execute();
+		
+	foreach ($return as $row) {
+		$matches[$row->title] = check_plain($row->title);
+	}
+	drupal_json_output($matches);	
+}
+
+function cassowary_search_company_autocomplete_validate($element, &$form_state, $form) {
+	$value = NULL;
+	if (!empty($element['#value'])) {
+
+		$query = db_select('node', 'node_company');
+
+		$return = $query
+		->fields('node_company', array('title'))
+		->condition('node_company.title', $element['#value'], '=')
+		->range(0, 10)
+		->execute();
+		$value_return = $return->fetchAssoc();
+
+		// Try to get a match from the input string when the user didn't use the
+		// autocomplete but filled in a value manually.
+		$value = $value_return['title'] ? $value_return['title'] : '';
+	}
+
+	$clicked_button = end($form_state['triggering_element']['#parents']);
+
+	if (empty($value) && !empty($element['#value']) && (!in_array($clicked_button, array('upload_button', 'remove_button')))) {
+		form_error($element, t('!company is not valied value.', array('!company' => $element['#title'])));
+	}
+	else {
+		// Update the value of this element so the field can validate the product IDs.
+		form_set_value($element, $value, $form_state);
+	};
+}
+
+
+function cassowary_search_schema() {
+	$schema['cassowary_search_save'] = array(
+			'description' => 'Cassowary Search Save',
+			'fields' => array(
+					'sid' => array(
+							'unsigned' => TRUE,
+							'not null' => TRUE,
+							'description' => 'save id',
+							'type' => 'serial',
+							'not null' => TRUE,
+							'unsigned' => TRUE,
+					),			
+					'uid' => array(
+							'description' => 'user id',
+							'type' => 'int',
+							'not null' => TRUE,							
+					),	
+					'name' => array(
+							'description' => 'time created',
+							'type' => 'text',
+							'not null' => TRUE,							
+					),									
+					'data' => array(
+							'description' => 'parameters of search',
+							'type' => 'text',
+							'not null' => TRUE,
+					),
+					'time' => array(
+							'description' => 'save name',
+							'type' => 'int',
+							'not null' => TRUE,							
+					),	
+					'type' => array(
+							'description' => 'save type',
+							'type' => 'text',
+							'not null' => TRUE,
+					),									
+			),
+			'primary key' => array('sid'),
+	);
+
+	return $schema;
+}
+
+/**
+ * form for cassowary_search_save()
+ */
+
+function cassowary_search_save_form() {
+	global $user;
+	$form = array();
+	
+	$form['submit'] = array('#type' => 'submit', '#value' => t('Delete'));
+	
+	// Build the sortable table header.
+	$header = array(
+			'title' => array('data' => 'Name',),
+			'operations' => array('data' => 'Delete'),
+	);
+	
+	$query = db_select('cassowary_search_save', 'cssave');	
+	$query
+	->fields('cssave', array('sid', 'name', 'type'))
+	->condition('cssave.uid', $user->uid, '=');
+	$select = $query->execute();
+
+	//Build the rows.
+	$options = array();
+	$destination = 'saved-search';
+	foreach ($select as $record) {
+		$options[$record->sid] = array(
+				'title' => array(
+						'data' => array(
+								'#type'  => 'link',
+								'#title' => $record->name,
+								'#href'  => $record->type . '/' . $record->sid,
+						),
+				),
+				'operations' => array(
+						'data' => array(
+								'#type' => 'link',
+								'#title' => t('delete'),
+								'#href' =>  'saved-searches/' . $record->sid . '/delete',
+								'#query' => $destination,
+						),
+				),
+		);
+	}
+
+	$form['searches'] = array(
+			'#type' => 'tableselect',
+			'#header' => $header,
+			'#options' => $options,
+			'#empty' => t('No saved searches.'),
+	);	
+
+	$form['pager'] = array('#markup' => theme('pager'));
+	
+	return $form;
+}
+
+/**
+ * submit form for cassowary_search_save()
+ */
+
+function cassowary_search_save_form_submit(&$form, &$form_state) {
+	global $user;
+	$account = $user;
+	$searches = array_filter($form_state['values']['searches']);
+	
+	foreach ($searches as $search) {
+		  	$query_delete = db_delete('cassowary_search_save');
+  			$query_delete->condition('sid', $search);
+  			$query_delete->execute();
+	}
+	drupal_set_message(t('The selected jobs have been deleted'), 'status', FALSE);
+}
+
+
+/*function cassowary_search_save_variants() {
+	global $user;
+	$saves = '';
+	
+	$query = db_select('cassowary_search_save', 'cssave');
+
+	
+	$query
+	->fields('cssave', array('sid', 'name', 'type'))
+	->condition('cssave.uid', $user->uid, '=');
+	$select = $query->execute();
+
+	foreach ($select as $row) {
+		$saves .= '<div class="save-link">' . l($row->name, $row->type . '/' . $row->sid) . '</div>';
+		$saves .= '<div class="save-link">' . l('delete ' .$row->name, $row->type . '/' . $row->sid . '/delete') . '</div>';
+	}
+	if(empty($saves)) $saves = 'No saved options';
+	
+	
+	return $saves;
+	
+}*/
+
+function cassowary_saved_searches($sid = NULL, $action = NULL) {
+  global $user;
+  $output = '';
+  //$output .= cassowary_search_save_variants();
+  if(isset($sid)){
+  	 
+  	$query = db_select('cassowary_search_save','cssave');
+  	$query->fields('cssave', array('data', 'uid'));
+  	$query->condition('cssave.sid', arg(1), '=');
+  	$select = $query->execute()->fetchAssoc();
+  	 
+  	if($user->uid == $select['uid']){
+  		if(isset($action) && $action == 'delete') {
+  			$query_delete = db_delete('cassowary_search_save');
+  			$query_delete->condition('sid', $sid);
+  			$query_delete->execute();
+  			unset($sid);
+  		}
+  	} else {
+  		unset($sid);
+  	}
+  }
+  $output = drupal_get_form('cassowary_search_save_form');
+  if(empty($output['searches']['#options'])) {
+  	$output = '<div class="no-saved-searches">You have no saved searches</div>';
+  }
+  $output = render($output);
+  return $output;	
+}
+
+
+function pager_count_job($number) {
+	global $pager_page_array, $pager_total, $pager_limits, $pager_total_items;
+	if($pager_total[0]>1){
+	  $output = '' . '<span class="page-count-elements">' . ($pager_page_array[0]*10 + 1) . '-' . ($pager_page_array[0]*10+$number) .'<span>' . ' of ' . $pager_total_items[0] .' Jobs';
+	} else $output = '';
+	return $output;
+}
+
+function pager_count_resume($number) {
+	global $pager_page_array, $pager_total, $pager_limits, $pager_total_items;
+	if($pager_total[0]>1){
+	  $output = '' . '<span class="page-count-elements">' . ($pager_page_array[0]*10 + 1) . '-' . ($pager_page_array[0]*10+$number) .'<span>' . ' of ' . $pager_total_items[0] .' Resumes';
+	} else $output = '';
+	return $output;
+}
+
+function cassowary_search_normal_what($what = NULL){
+	$prepositions = '-the-and-of-in-on-a-an';
+	$what = preg_replace('/[^a-z 0-9-.]+/is', '', $what);
+	$what_array = explode(" ", $what);
+	$i = 0;
+	
+	while(isset($what_array[$i])) {
+	  if ((strlen($what_array[$i])) < 3 || (substr_count($prepositions, $what_array[$i])>0)) {
+	  	unset($what_array[$i]);
+	  }
+	  /*if(substr_count($prepositions, $what_array[$i])>=0){
+	  	unset($what_array[$i]);	  	
+	  }*/
+	  $i++;
+	}
+	$what = implode(" ", $what_array);
+	//dsm($what);
+	return $what;	
+	
+}
+
+function cassowary_array_what($what = NULL){
+	$enter_what = array();
+	
+	$enter_what['options'] = array();
+	 
+	// Build the sortable table header.
+	$enter_what['header'] = array(
+							  'words' => array('data' => 'Filters'),
+							);
+	$whats = explode(" ", $what);
+	$i = 0;
+	foreach ($whats as $what) {
+		$enter_what['options'][$what] = array(
+					'words' => array(
+							'data' => array(
+									'#markup' => t($what),
+		
+									//'#type' => 'link',
+									//'#title' => t($what),
+									//'#href' =>  '',
+									//'#query' => $destination,
+							),
+					),
+		);
+		$enter_what['def_true'][$what] = TRUE;
+		$i++;
+	}	
+	return $enter_what;
+}
+
+function cassowary_show_result($what = NULL){
+	if($what != NULL) {
+		$return_show_result = '<div id="show-with-save">Showing Result for ';
+		$array_what = cassowary_array_what($what);
+		$first = 1;
+		foreach ($array_what['options'] as $what) {
+			if($first == 1){
+			  $return_show_result .= '<span class="keyword">"' . $what['words']['data']['#markup'] .'"</span>';
+			} else {
+			  $return_show_result .= ', <span class="keyword">"' . $what['words']['data']['#markup'] .'"</span> ';			
+			}
+			$first = 0;
+		}	
+	} else {
+		$return_show_result = '<div id="show-with-save">Showing Result for ';		
+	}
+	if(arg(0) != 'search_resume'){
+	  $return_show_result .= '<span class="save_this_search">Save this search</span></div>';
+	}  else {
+	  $return_show_result .= '</div>';
+	}
+	return $return_show_result;
+}
+
+function cassowary_search_sort_link(){
+	$real_path = explode('/', $_GET['q']);
+	$return_path = '';
+	$return_path .= '<div id="sort_by_wrapper">';
+	$return_path .= 'SORT BY' . '<span class="sort_relevance">'. l('Relevance',$real_path[0] . '/0/relevance') .'</span>';
+	$return_path .= '<span class="sort_date">'. l('Date',$real_path[0] . '/0/date') .'</span>';
+	$return_path .= '</div>';
+	return $return_path; 	
+}
+
+function cassowary_search_node_update_index($node) {
+  $text = '';
+  $user_prof = user_load($node->uid);
+  $account = user_view($user_prof);
+  if(isset($user_prof->field_first_name['und'][0]['value'])){	
+    $text .= $user_prof->field_first_name['und'][0]['value'];
+  }
+  if(isset($user_prof->name)){
+  	$text .= ' ' . $user_prof->name;
+  }  
+  
+  if(isset($account['field_specialization'][0]['#markup'])){
+  	$text .= ' ' . $account['field_specialization'][0]['#markup'];
+  }
+  
+  return $text;	
+}

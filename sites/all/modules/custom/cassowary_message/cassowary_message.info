@@ -1,0 +1,4 @@
+name = Cassowary messages
+description = Cassowary messages
+package = Cassowary
+core = 7.x

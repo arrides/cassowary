@@ -1,0 +1,38 @@
+<?php
+
+/**
+ * @file
+ */
+
+function cassowary_notifications_schema() {
+  $schema = array();
+
+  $schema['cassowary_notifications_state'] = array(
+    'description' => '{cassowary_notifications_state} holds the current state of notifications',
+    'fields' => array(
+      'nid' => array(
+        'description'   => 'ID of the node',
+        'type'          => 'int',
+        'not null'      => TRUE,
+        'unsigned'      => TRUE,
+      ),
+      'current_uid' => array(
+          'description'   => 'current ID of the user',
+          'type'          => 'int',
+          'not null'      => TRUE,
+          'unsigned'      => TRUE,
+      ),
+      'mailer_enable' => array(
+        'description'   => 'Email Notification Status (Enabled=1, Disabled=0)',
+        'type'          => 'int',
+        'not null'      => TRUE,
+        'unsigned'      => TRUE,
+      ),
+    ),
+    'unique keys' => array(
+      'nid' => array('nid')
+    ),
+  );
+
+  return $schema;
+}

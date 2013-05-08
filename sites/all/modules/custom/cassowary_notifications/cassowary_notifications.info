@@ -1,0 +1,8 @@
+name = Cassowary Notifications module
+description = The module which send notification email for users.
+package = Cassowary
+dependencies[] = cassowary_main
+dependencies[] = cassowary_job_workflow
+core = 7.x
+files[] = cassowary_notifications.module
+files[] = cassowary_notifications.install

@@ -1,0 +1,361 @@
+/* CASSOWARY "Master" Page 06.11.2012
+-------------------------------------*/
+.background {
+    background: url('../img/noise.png') repeat 0 0;
+    position: fixed;
+    height: 100%;
+    width: 100%;
+    opacity: 0.4;
+    z-index: 0;
+}
+.logo, .brand {
+    position: absolute;
+    top: 23px;
+    left: 35px;
+}
+header {
+    .clearfix();
+
+    .cas_login-menu {
+        text-align: right;
+    }
+
+    .pane-cassowary-search-cassowarysearch {
+        #cassowary-search-form .form-item-what {
+            & > .control-label {
+                float: none;
+                padding: 0;
+                text-align: left;
+                width: auto;
+            }
+            & > .controls {
+                margin-left: 0;
+            }
+        }
+    }
+}
+header, .header-second {
+    input[type="text"] {
+        box-shadow: none !important;
+    }
+}
+
+.header-second {
+   .header-inner {
+       height: 54px;
+   }
+   .container {
+       position: relative;
+   }
+   .secondary-logo {
+       line-height: 54px;
+       position: absolute;
+       text-decoration: none;
+       margin-left: 34px;
+   }
+   .pane-cassowary-search-cassowarysearch {
+      margin-top: 10px;
+      margin-left: 200px;
+
+      .form-type-textfield > label {
+          display: none;
+      }
+      .form-type-textfield .controls {
+          margin-left: 0 !important;
+      }
+      input[type="text"] {
+          padding: 7px 16px;
+      }
+      button.form-submit {
+          font-family: @HelveticaRegular;
+          font-size: 14px;
+          margin-top: 0px;
+          padding: 7px 16px;
+      }
+   }
+    .pane-cassowary-main-cassowary-user-dashboard, .cas_login-menu {
+        margin-top: 8px;
+    }
+    .cas_login-menu ul.user-login > li.first > a {
+        color: @white;
+    }
+
+   .pane-header-user-info {
+       position: static;
+       a {
+           color: @white;
+       }
+   }
+   .view-header-user-info {
+       text-align: right;
+       margin-top: 0;
+   }
+   .cas_login-menu {
+     //margin-top: 18px;
+   }
+}
+
+header .toolbar {
+    position: relative;
+    padding: 0 0 0 225px;
+    height: 160px;
+
+    &, a {
+        color: @white;
+    }
+    article {
+        font-size: 24px;
+        line-height: 30px;
+        padding: 21px 0 7px 0;
+    }
+    input[type="text"] {
+        border: 0 none;
+        .border-radius(5px 0 0 5px);
+        //width: 358px;
+        width: 266px;
+
+        height: 24px;
+        line-height: 24px;
+        padding: 13px 16px;
+    }
+    .radio.inline {
+        padding-top: 12px;
+    }
+    .sign-menu {
+        list-style: none;
+        font-family: @HelveticaRegular;
+        font-size: @baseFontSize;
+        margin: 0;
+        position: absolute;
+        top: 26px;
+        right: 0;
+
+        li {
+            display: inline;
+            line-height: 23px;
+            margin: 0 14px;
+            padding: 0;
+        }
+        .divider-vertical {
+            border-right: 1px dotted #808080;
+            display: inline-block;
+            height: 23px;
+            margin: 0;
+            vertical-align: middle;
+        }
+    }
+    .radio {
+        font-family: @HelveticaRegular;
+    }
+}
+
+
+// Search Options
+header, .header-second {
+    .pane-cassowary-search-cassowarysearch {
+        .fieldset-wrapper, .cassowary-list-options {
+          .clearfix();
+        }
+        .fieldset-wrapper {
+            margin-right: 7px;
+        }
+        .form-type-textfield,
+        .form-type-radios {
+          float: left !important;
+          margin-right: 0 !important;
+        }
+    }
+    .form-type-radios {
+        margin-top: 35px;
+        position: relative;
+        height: 50px;
+        width: 102px;
+
+        &:after {
+            content: '';
+            display: block;
+            border-left: 1px dotted #333;
+            position: absolute;
+            top: 50%;
+            margin-top: -15px;
+            height: 31px;
+            width: 1px;
+        }
+
+        & > label {
+            background: #FBFBFB url('../img/ico/ico-arrow-gray.png') no-repeat 80px center;
+            .border-radius(0 5px 5px 0);
+            color: #333;
+            cursor: pointer;
+            display: block !important;
+            font-family: @helvetica;
+            font-size: 14px;
+            font-weight: normal !important;
+            padding-left: 10px;
+            margin: 0 !important;
+            //text-indent: -3500px;
+            height: 50px;
+            line-height: 50px;
+            width: 92px;
+        }
+    }
+
+    div.cassowary-list-options {
+        background: #FBFBFB;
+        .border-radius(0 0 5px 5px);
+        border-top: 1px solid #DDD;
+        .box-shadow(0px 1px 3px #BFBFBF);
+        display: none;
+        padding: 10px 0 5px 0;
+        position: absolute;
+        top: 51px;
+        width: 92px;
+
+        .form-type-radio {
+            float: none;
+
+            label {
+                color: #333;
+                font-family: @helvetica;
+                font-size: 14px;
+                line-height: 100%;
+                padding-top: 0 !important;
+
+                input[type="radio"], input[type="checkbox"] {
+                    margin-top: 0;
+                    margin-left: -16px;
+                }
+            }
+
+        }
+    }
+}
+.header-second .pane-cassowary-search-cassowarysearch {
+    .form-type-radios {
+        margin-top: 0 !important;
+        margin-bottom: 0 !important;
+    }
+    input[type="text"] {
+      .border-radius(5px 0 0 5px);
+      width: 266px;
+        padding: 5px 16px;
+        height: 24px;
+        line-height: 24px;
+    }
+
+    .form-type-radios {
+      height: 34px;
+
+      &:after {
+        content: '';
+        display: block;
+        border-left: 1px dotted #333;
+        position: absolute;
+        top: 50%;
+        margin-top: -8.5px;
+        height: 17px;
+        width: 1px;
+      }
+
+      & > label {
+        height: 34px !important;
+        line-height: 34px !important;
+      }
+    }
+    div.cassowary-list-options {
+      top: 35px;
+    }
+}
+
+
+footer .toolbar {
+    height: 237px;
+
+    section {
+      font-weight: normal !important;
+      font-size: 18px;
+    }
+
+    dl {
+        margin-top: 38px;
+    }
+    dt, dd, p, li {
+        margin: 0;
+        padding: 0;
+        line-height: 24px;
+    }
+    dd a, p {
+        color: #999;
+        font-size: 18px;
+        font-weight: normal;
+    }
+    article, dt {
+        color: @white;
+        font-size: 24px;
+        margin-bottom: 14px;
+    }
+    article, h2.block-title {
+        margin: 38px 0 14px 0;
+    }
+
+    ul {
+        margin: 0;
+        lst-style: none;
+
+        li a {
+            color: #999;
+            font-size: 18px;
+            font-weight: normal !important;
+            &:hover {
+                background: none;
+                text-decoration: underline;
+            }
+        }
+    }
+}
+footer .copy {
+    height: 122px;
+    text-align: center;
+    img {
+        margin: 10px 0 5px 0;
+    }
+    p {
+        font-size: 18px;
+        line-height: 100%;
+        margin: 0;
+    }
+}
+
+
+
+.footer #block-block-1 img {
+  margin: 46px 0 24px 0;
+}
+
+//role
+.page-user-register .field-name-field-role .form-item-field-role-und > label.control-label {
+    display: none
+}
+
+
+// Prefooter Section
+.pre-footer {
+  background: #fff;
+  color: #333333;
+  font-family: @HelveticaRegular;
+  font-size: 18px;
+  font-weight: bold;
+
+  height: 80px;
+  line-height: 80px;
+  .box-shadow(0px -0px 15px rgba(50, 50, 50, 0.2));
+
+
+  p {
+    margin: 0;
+    text-align: center;
+    img {
+      margin: 0 15px;
+    }
+  }
+}

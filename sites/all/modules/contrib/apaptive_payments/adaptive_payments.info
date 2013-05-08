@@ -1,0 +1,5 @@
+name = Adaptive payments API
+description = PayPal-X Adaptive Payments API
+package = PayPal API
+core = 7.x
+project = adaptive_payments

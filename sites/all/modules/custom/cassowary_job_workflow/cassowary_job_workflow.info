@@ -1,0 +1,7 @@
+name = Cassowary job workflow
+description = Cassowary job workflow
+dependencies[] = privatemsg
+package = Cassowary
+core = 7.x
+files[] = cassowary_job_workflow.module
+configure = admin/config/cassowary/workflow

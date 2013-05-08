@@ -1,0 +1,174 @@
+/* Login Page Section */
+.content-login-section {
+    padding-bottom: 297px;
+
+
+    .breadcrumb {
+        display: none;
+    }
+    section.span9 form > div {
+        display: block;
+        background: white;
+        padding: 20px;
+        border: 1px solid #CCC;
+        border-radius: 5px;
+        width: 650px;
+    }
+}
+
+
+
+/* Sign Up/ Sign In */
+.user-info-from-cookie-processed {
+    & > div {
+        display: block;
+        background: white;
+        padding: 20px;
+        border: 1px solid #CCC;
+        border-radius: 5px;
+    }
+    .field-widget-options-buttons {
+        text-align: center;
+
+        .option {
+            padding: 20px 50px !important;
+            .btn();
+            .btn-green();
+            text-transform: capitalize;
+
+            input {
+                display: none;
+            }
+            &.choosen {
+                background: #507728;
+            }
+        }
+        .form-radios {
+            .form-type-radio {
+                display: inline-block;
+            }
+
+            .form-type-radio + .form-type-radio {
+                margin-left: 20px;
+            }
+        }
+    }
+}
+
+.control-group > .control-label,
+.password-strength-text {
+    font-weight: bold;
+}
+
+.password-strength-text {
+    color: @red;
+}
+.region-sidebar-second .user-register-link a {
+    .btn();
+    .btn-primary();
+}
+
+
+.page-user-register .form-type-password .password-parent {
+    overflow: hidden;
+
+    /*& > * {
+        float: left;
+        margin-right: 10px;
+        line-height: 46px;
+    }*/
+
+    //temp
+    .password-strength-title,
+    .password-strength-text {
+        display: none;
+    }
+}
+
+
+/* Employer Registration */
+.field-name-field-company-logo {
+    //float: left;
+    margin: 0 25px 0 0 !important;
+    // Hidden
+    .control-label,
+    .help-block {
+        display: none;
+    }
+    //Uploader
+    .image-widget-data {
+        background: url('../img/add-company-photo.png') no-repeat 0 0;
+        border: 1px solid #ccc;
+        .border-radius(5px);
+        cursor: pointer;
+        display: inline-block;
+        position: relative;
+        overflow: hidden;
+        height: 67px;
+        width: 85px;
+
+        &:hover {
+            border-color: #669900;
+        }
+        input[type="file"], .form-file {
+            cursor: pointer;
+            font-size: 150px;
+            height: 300px;
+            margin: 0;
+            margin-left:-500px;
+            margin-top: -50px;
+            -moz-opacity: 0;
+            filter: alpha(opacity=0);
+            opacity: 0;
+            position: relative;
+            z-index: 2;
+        }
+    }
+
+    //image-preview
+    .image-preview {
+        position: relative;
+
+        .remove-button {
+            position: absolute;
+            top: 0;
+            right: 0;
+            background: url('../img/ico/ico-close2.png') no-repeat 0 0;
+            border: none;
+            cursor: pointer;
+            .square(27px);
+            text-indent: 3000px;
+            margin: -12px -2px 0 0;
+        }
+    }
+    .image-widget-data {
+        //display: none;
+    }
+}
+
+.page-node-add {
+    .form-actions {
+        clear: both;
+    }
+    .field-name-field-company-logo {
+        float: left;
+
+        .image-widget-data {
+            margin-top: 3px;
+        }
+    }
+}
+.page-node-add-job .field-name-field-company-logo {
+    float: none;
+
+    label {
+        display: block;
+        float: left;
+        padding-top: 5px;
+        text-align: right;
+        width: 100px;
+    }
+    .controls {
+        margin-left: 120px;
+    }
+}

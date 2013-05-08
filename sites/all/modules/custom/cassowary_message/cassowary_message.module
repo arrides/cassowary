@@ -1,0 +1,1261 @@
+<?php
+/**
+ * @file
+ * TODO: Enter file description here.
+ */
+
+/**
+ * Implements hook_init().
+ */
+function cassowary_message_init(){
+	//drupal_add_js(drupal_get_path('module', 'cassowary_search') . '/js/cassowary_search.js', 'file');
+	//module_load_include('inc', 'privatemsg', 'privatemsg.pages');
+}
+
+/**
+ * Implements hook_permission().
+ */
+/*function cassowary_message_permission() {
+	return array(
+			'adaptive payment' => array(
+					'title' => t('Adaptive payment'),
+			),
+	);
+}*/
+
+/**
+ * Implements hook_menu().
+ */
+function cassowary_message_menu() {
+	$items = array();
+	$items['messages_cass'] = array(
+			'type' => MENU_CALLBACK,
+			'title' => 'Messages',
+			'page callback' => 'cassowary_messages_page',
+			'access callback' => TRUE,
+	);
+	$items['messages_private'] = array(
+			'type' => MENU_CALLBACK,
+			'title' => 'Messages',
+			'page callback' => 'cassowary_messages_list',
+			'access callback' => 'privatemsg_user_access',
+	);
+	$items['messages_private/%/%'] = array(
+			'type' => MENU_CALLBACK,
+			'title' => 'Messages',
+			'page callback' => 'cassowary_messages_conversation',
+			'page arguments' => array(1,2),
+			'access callback' => 'privatemsg_user_access',
+	);	
+	$items['messages_private/delete/%/%'] = array(
+			'type' => MENU_CALLBACK,
+			'title' => 'Messages',
+			'page callback' => 'cassowary_messages_conversation_delete',
+			'page arguments' => array(2,3),
+			'access callback' => 'privatemsg_user_access',
+	);	
+	$items['messages_private/archive/%/%'] = array(
+			'type' => MENU_CALLBACK,
+			'title' => 'Messages',
+			'page callback' => 'cassowary_messages_conversation_archive',
+			'page arguments' => array(2,3),
+			'access callback' => 'privatemsg_user_access',
+	);	
+	$items['messages_private/hire/%/%'] = array(
+			'type' => MENU_CALLBACK,
+			'title' => 'Messages',
+			'page callback' => 'cassowary_messages_hire',
+			'page arguments' => array(2,3),
+			'access callback' => 'privatemsg_user_access',
+	);	
+	$items['messages_private/direct_conversation/%'] = array(
+			'type' => MENU_CALLBACK,
+			'title' => 'Messages',
+			'page callback' => 'cassowary_messages_direct_conversation',
+			'page arguments' => array(2),
+			'access callback' => 'privatemsg_user_access',
+	);	
+	$items['messages_private/messages_archive'] = array(
+			'type' => MENU_CALLBACK,
+			'title' => 'Messages',
+			'page callback' => 'cassowary_messages_list_archive',
+			'access callback' => 'privatemsg_user_access',
+	);
+	/*$items['messages_archive/%/%'] = array(
+			'type' => MENU_CALLBACK,
+			'title' => 'Messages',
+			'page callback' => 'cassowary_messages_conversation_archive',
+			'page arguments' => array(1,2),
+			'access callback' => 'privatemsg_user_access',
+	);*/		
+	return $items;
+}
+
+
+function cassowary_messages_list() {
+	global $user;
+	$user_prof = $user;
+	$output = ''; $list = '';
+	$output .= '<div class="header-line">';
+	$output .= '<div class="links-start">Messages <span>>></span></div>';
+	$output .= l('inbox', 'messages_private');
+	$output .= l('archive', 'messages_private/messages_archive');
+	$output .= '</div>';
+	if (in_array('employer', $user_prof->roles)) {
+		$list .= cassowary_messages_list_employer($user_prof);
+	} elseif(in_array('writer', $user_prof->roles)) {
+		$list .= cassowary_messages_list_writer($user_prof);		
+	}	
+	if(empty($list)) {
+	  $list .= '<div class="no-messages">You have no messages in your inbox</div>';
+	}
+	$output .= $list;
+	return $output;
+}
+
+
+//employer's list
+function cassowary_messages_list_employer($user_prof) {
+	$content = '';
+	$list = array();
+	
+	$query = db_select('field_data_field_job', 'fdfj');
+	$query -> fields('fdfj', array('entity_id', 'field_job_value'));
+	$query -> leftJoin('node', 'n', 'n.nid = fdfj.field_job_value');
+	$query -> fields('n', array('title'));
+	$query -> leftJoin('pm_index', 'pi', 'pi.thread_id = fdfj.entity_id');
+	$query -> fields('pi', array('recipient','deleted'));
+	$query -> leftJoin('pm_our_tags_index', 'poti', 'poti.thread_id = fdfj.entity_id and poti.uid = ' . $user_prof->uid);
+	$query -> fields('poti', array('tag_id'));
+	$query -> leftJoin('field_data_field_company_text', 'fdfct', 'n.nid = fdfct.entity_id');// and fdfct.bundle = job');
+	$query -> fields('fdfct', array('field_company_text_value','bundle'));
+	$query -> condition('fdfct.bundle', "job", '=');
+	$query -> condition('poti.tag_id', NULL, 'IS');	
+	$query -> condition('pi.recipient', $user_prof->uid, '<>');
+	$query -> condition('pi.deleted', 0, '=');
+	$query -> condition('n.uid', $user_prof->uid, '=');
+	$query -> groupBy('fdfj.field_job_value');
+	
+	$query_unread = db_select('pm_index', 'pmi');
+	$query_unread -> addExpression('COUNT(field_job_value)', 'unread_count');
+	$query_unread -> leftJoin('field_data_field_job', 'fdfj', 'fdfj.entity_id = pmi.thread_id');
+	$query_unread -> fields('fdfj', array('field_job_value'));
+	$query_unread -> leftJoin('node ', 'n', 'n.nid = fdfj.field_job_value');
+	
+	/*$query_unread = db_select('field_data_field_job', 'fdfj');
+	$query_unread -> addExpression('COUNT(field_job_value)', 'unread_count');
+	$query_unread -> rightJoin('pm_index', 'pmi', 'fdfj.entity_id = pmi.thread_id');
+	$query_unread -> fields('fdfj', array('field_job_value'));
+	$query_unread -> leftJoin('node ', 'n', 'n.nid = fdfj.field_job_value');*/	
+	
+	$query_unread
+	->condition('pmi.deleted', 0)
+	->condition('pmi.is_new', 1)
+	->condition('pmi.recipient', $user_prof->uid)
+	->condition('pmi.type', array('hidden', 'user'));
+	$query_unread -> condition('n.uid', $user_prof->uid, '=');
+	$query_unread -> groupBy('fdfj.field_job_value');
+	$select_unread = $query_unread->execute()->fetchAllKeyed(0,1);	
+	
+	$number = 0;
+	$select = $query->execute();
+
+	foreach ($select as $row) {
+		
+		$node_prof = node_load($row->field_job_value);
+		//dsm($node_prof);
+		if($node_prof->field_hired_employee){
+			$conversation_string['hired'] = 'Hired!';
+		}
+	    $conversation_string['number'] = $number;	
+	  	$conversation_string['con_id'] = $row->field_job_value;
+	  	$conversation_string['link'] = l('RE: '.$row->title, 'messages_private/' . $conversation_string['con_id'] . '/' . $row->entity_id);
+	  	$conversation_string['link_view'] = l('View', 'messages_private/' . $conversation_string['con_id'] . '/' . $row->entity_id);
+	  	$conversation_string['link_archive'] = l('Archive', 'messages_private/archive/' . $conversation_string['con_id'] . '/' . $row->entity_id);
+	  	$conversation_string['link_delete'] = l('Delete', 'messages_private/delete/' . $conversation_string['con_id'] . '/' . $row->entity_id);
+	  	$conversation_string['company'] = $row->field_company_text_value;
+	  	if(isset($select_unread[$conversation_string['con_id']])) {
+	  		$conversation_string['unread'] = $select_unread[$conversation_string['con_id']];		
+	  	} else {
+	  		$conversation_string['unread'] = 0;
+	  	}
+	  	
+	  	$list[] = array(  "number" => $conversation_string['number'],
+	  					  "con_id" => $conversation_string['con_id'],
+	  					  "link" => $conversation_string['link'],
+	  					  "link_view" => $conversation_string['link_view'],
+	  					  "link_archive" => $conversation_string['link_archive'],
+	  					  "link_delete" => $conversation_string['link_delete'],
+	  					  "company" => $conversation_string['company'],
+	  					  "unread"  => $conversation_string['unread'],
+	  					 );
+	    //$content .= theme('cassowary_messages_conversation_string', array('conversation_string'=>$conversation_string));  
+	    unset($conversation_string);
+	    $number++;
+	}
+	
+	//simple conversations	
+	$query2 = db_select('pm_index', 'pi');
+	$query2 -> fields('pi', array('recipient', 'thread_id'));
+	
+	
+	$query2 -> leftJoin('field_data_field_job', 'fdfj', 'pi.thread_id = fdfj.entity_id');
+	$query2 -> fields('fdfj', array('field_job_value'));
+	$query2 -> leftJoin('pm_message', 'pmm', 'pmm.mid = pi.mid');
+	$query2 -> leftJoin('pm_our_tags_index', 'poti', 'poti.thread_id = fdfj.entity_id and poti.uid = ' . $user_prof->uid);
+	$query2 -> fields('pmm', array('subject'));
+	$query2 -> fields('poti', array('tag_id'));
+	$query2 -> condition('pi.deleted', 0, '=');
+	$query2 -> condition('fdfj.field_job_value', 0, '=');
+	$query2 -> condition('pi.recipient', $user_prof->uid, '=');
+	$query2 -> condition('poti.tag_id', NULL, 'IS');
+	$query2 -> groupBy('pi.thread_id');
+	
+	$query_unread2 = db_select('pm_index', 'pmi');
+	$query_unread2 -> addExpression('COUNT(thread_id)', 'unread_count');
+	$query_unread2 -> fields('pmi', array('thread_id'));
+	$query_unread2
+	->condition('pmi.deleted', 0)
+	->condition('pmi.is_new', 1)
+	->condition('pmi.recipient', $user_prof->uid)
+	->condition('pmi.type', array('hidden', 'user'));
+	$query_unread2 -> groupBy('pmi.thread_id');
+	//$query_unread -> condition('n.uid', $user_prof->uid, '=');
+	$select_unread2 = $query_unread2->execute()->fetchAllKeyed(0,1);
+	
+	$select2 = $query2->execute();
+	//dsm($select2);
+	//$number++;
+	foreach ($select2 as $row) {
+		//dsm($row);
+		$conversation_string['number'] = $number;
+		$conversation_string['con_id'] = $row->field_job_value;
+		$conversation_string['link'] = l('RE: '.$row->subject, 'messages_private/' . $conversation_string['con_id'] . '/' . $row->thread_id);
+		$conversation_string['link_view'] = l('View', 'messages_private/' . $conversation_string['con_id'] . '/' . $row->thread_id);
+		$conversation_string['link_archive'] = l('Archive', 'messages_private/archive/' . $conversation_string['con_id'] . '/' . $row->thread_id);
+		$conversation_string['link_delete'] = l('Delete', 'messages_private/delete/' . $conversation_string['con_id'] . '/' . $row->thread_id);
+	
+		if(isset($select_unread2[$row->thread_id])) {
+			$conversation_string['unread'] = $select_unread2[$row->thread_id];
+		} else {
+	  		$conversation_string['unread'] = 0;
+	  	}
+		$list[] = array("number" => $conversation_string['number'],
+						"con_id" => $conversation_string['con_id'],
+						"link" => $conversation_string['link'],
+						"link_view" => $conversation_string['link_view'],
+						"link_archive" => $conversation_string['link_archive'],
+						"link_delete" => $conversation_string['link_delete'],
+						"company" => $conversation_string['company'],
+						"unread"  => $conversation_string['unread'],
+						);		
+		//$content .= theme('cassowary_messages_conversation_string', array('conversation_string'=>$conversation_string));
+		unset($conversation_string);
+		$number++;
+	}	
+	
+	uasort($list, 'cassowary_messages_list_Cmp');
+	foreach ($list as $item) {
+		$content .= theme('cassowary_messages_conversation_string', array('conversation_string'=>$item));
+	}	
+	//end simple conversations
+	
+	return $content;	
+}
+
+function cassowary_messages_list_Cmp($a, $b) {
+	if ($a['unread'] === $b['unread']) return 0;
+	return $a['unread'] < $b['unread'] ? 1 : -1;
+}
+
+
+//writer's list
+function cassowary_messages_list_writer($user_prof) {
+
+	$content = '';
+	$query = db_select('field_data_field_job', 'fdfj');
+	$query -> fields('fdfj', array('entity_id', 'field_job_value'));
+	$query -> leftJoin('node ', 'n', 'n.nid = fdfj.field_job_value');
+	$query -> fields('n', array('title'));
+	$query -> leftJoin('pm_index', 'pi', 'pi.thread_id = fdfj.entity_id');
+	$query -> fields('pi', array('recipient', 'thread_id'));
+	$query -> leftJoin('pm_message', 'pmm', 'pmm.mid = pi.mid');
+	$query -> fields('pmm', array('subject'));
+	$query -> leftJoin('pm_our_tags_index', 'poti', 'poti.thread_id = fdfj.entity_id and poti.uid = ' . $user_prof->uid);
+	$query -> fields('poti', array('tag_id'));
+	$query -> leftJoin('field_data_field_company_text', 'fdfct', 'n.nid = fdfct.entity_id and fdfct.bundle = :job', array(':job' => "job"));
+	$query -> fields('fdfct', array('field_company_text_value','bundle'));
+	//$query -> condition('fdfct.bundle', "job", '=');	
+	
+	$query -> condition('poti.tag_id', NULL, 'IS');
+	$query -> condition('pi.deleted', 0, '=');		
+	$query -> condition('pi.recipient', $user_prof->uid, '=');
+	//$query -> groupBy('fdfj.field_job_value');
+	$query -> groupBy('pi.thread_id');
+	
+	$query_unread = db_select('pm_index', 'pmi');
+	$query_unread -> fields('pmi', array('thread_id'));
+	$query_unread->addExpression('COUNT(thread_id)', 'unread_count');
+	$query_unread
+	->condition('pmi.deleted', 0)
+	->condition('pmi.is_new', 1)
+	->condition('pmi.recipient', $user_prof->uid)
+	->condition('pmi.type', array('hidden', 'user'));
+	$query_unread -> groupBy('pmi.thread_id');
+	//$query_unread -> condition('n.uid', $user_prof->uid, '=');
+	
+	$select_unread = $query_unread->execute()->fetchAllKeyed(0,1);			
+	
+	$number = 0;
+	$select = $query->execute();
+	foreach ($select as $row) {
+		//dsm($row);
+		if($row->title){
+		  $title = $row->title;	
+		} else {
+		  $title = $row->subject;			
+		}
+		$conversation_string['number'] = $number;
+		$conversation_string['con_id'] = $row->field_job_value;
+		$conversation_string['link'] = l('RE: '.$title, 'messages_private/' . $conversation_string['con_id'] . '/' . $row->entity_id);
+		$conversation_string['link_view'] = l('View', 'messages_private/' . $conversation_string['con_id'] . '/' . $row->entity_id);
+		$conversation_string['link_archive'] = l('Archive', 'messages_private/archive/' . $conversation_string['con_id'] . '/' . $row->entity_id);
+		$conversation_string['link_delete'] = l('Delete', 'messages_private/delete/' . $conversation_string['con_id'] . '/' . $row->entity_id);
+		$conversation_string['company'] = $row->field_company_text_value;		
+		if(isset($select_unread[$row->entity_id])) {
+			$conversation_string['unread'] = $select_unread[$row->entity_id];
+		} else {
+	  		$conversation_string['unread'] = 0;
+	  	}	
+		$list[] = array("number" => $conversation_string['number'],
+				"con_id" => $conversation_string['con_id'],
+				"link" => $conversation_string['link'],
+				"link_view" => $conversation_string['link_view'],
+				"link_archive" => $conversation_string['link_archive'],
+				"link_delete" => $conversation_string['link_delete'],
+				"company" => $conversation_string['company'],
+				"unread"  => $conversation_string['unread'],
+		);
+		//$content .= theme('cassowary_messages_conversation_string', array('conversation_string'=>$conversation_string));
+		unset($conversation_string);	
+		$number++;
+	}
+	
+	uasort($list, 'cassowary_messages_list_Cmp');
+	foreach ($list as $item) {
+		$content .= theme('cassowary_messages_conversation_string', array('conversation_string'=>$item));
+	}	
+	//simple conversations
+	/*$query2 = db_select('pm_index', 'pi');
+	$query2 -> fields('pi', array('recipient', 'thread_id'));
+	
+	
+	$query2 -> leftJoin('field_data_field_job', 'fdfj', 'pi.thread_id = fdfj.entity_id');
+	$query2 -> fields('fdfj', array('field_job_value'));
+	$query2 -> leftJoin('pm_message', 'pmm', 'pmm.mid = pi.mid');
+	$query2 -> leftJoin('pm_our_tags_index', 'poti', 'poti.thread_id = fdfj.entity_id and poti.uid = ' . $user_prof->uid);
+	$query2 -> fields('pmm', array('subject'));
+	$query2 -> fields('poti', array('tag_id'));
+	$query2 -> condition('pi.deleted', 0, '=');
+	$query2 -> condition('fdfj.field_job_value', 0, '=');
+	$query2 -> condition('pi.recipient', $user_prof->uid, '=');
+	$query2 -> condition('poti.tag_id', NULL, 'IS');
+	$query2 -> groupBy('pi.thread_id');
+	
+	$query_unread2 = db_select('pm_index', 'pmi');
+	$query_unread2 -> addExpression('COUNT(thread_id)', 'unread_count');
+	$query_unread2 -> fields('pmi', array('thread_id'));
+	$query_unread2
+	->condition('pmi.deleted', 0)
+	->condition('pmi.is_new', 1)
+	->condition('pmi.recipient', $user_prof->uid)
+	->condition('pmi.type', array('hidden', 'user'));
+	$query_unread2 -> groupBy('pmi.thread_id');
+	//$query_unread -> condition('n.uid', $user_prof->uid, '=');
+	$select_unread2 = $query_unread2->execute()->fetchAllKeyed(0,1);
+	$select2 = $query2->execute();
+	$number++;
+	foreach ($select2 as $row) {
+		$conversation_string['number'] = $number;
+		$conversation_string['con_id'] = $row->field_job_value;
+		$conversation_string['link'] = l('RE: '.$row->subject, 'messages_private/' . $conversation_string['con_id'] . '/' . $row->thread_id);
+		$conversation_string['link_view'] = l('View', 'messages_private/' . $conversation_string['con_id'] . '/' . $row->thread_id);
+		$conversation_string['link_archive'] = l('Archive', 'messages_private/archive/' . $conversation_string['con_id'] . '/' . $row->thread_id);
+		$conversation_string['link_delete'] = l('Delete', 'messages_private/delete/' . $conversation_string['con_id'] . '/' . $row->thread_id);
+	
+		if(isset($select_unread2[$row->thread_id])) {
+			$conversation_string['unread'] = $select_unread2[$row->thread_id];
+		}
+		$content .= theme('cassowary_messages_conversation_string', array('conversation_string'=>$conversation_string));
+		unset($conversation_string['unread']);
+		$number++;
+	}	*/
+	
+	return $content;
+}
+
+function cassowary_messages_conversation_delete($con_id, $active) {
+	global $user;
+	/*$query = db_select('field_data_field_job', 'fdfj');
+	$query -> fields('fdfj', array('entity_id'));
+	$query -> leftJoin('pm_index ', 'pi', 'pi.thread_id  = fdfj.entity_id');
+	$query -> fields('pi', array('recipient', 'thread_id'));
+	$query -> condition('fdfj.field_job_value', $con_id, '=');
+	$query -> condition('pi.recipient', $user_prof->uid, '<>');*/
+	
+	$user_prof = $user;
+	$sqlaccess = db_select('pm_index', 'pi');
+	$sqlaccess -> fields('pi', array('mid', 'recipient'));
+	$sqlaccess -> condition('pi.thread_id', $active);
+	$sqlaccess -> condition('pi.recipient', $user_prof->uid);
+	$result = $sqlaccess->execute();
+	$result = ($result->fetchAssoc());
+	if(empty($result)) {
+		return 'No seached this conversation';
+	}	
+	
+	 if (in_array('employer', $user_prof->roles)) {
+		if ($con_id == 0) {
+			$con_query_delete = db_update('pm_index')
+			->fields(array('deleted' => time(),))
+			->condition('thread_id', $active, '=')
+			->condition('recipient', $user->uid, '=')
+			->execute();
+			
+			$query = privatemsg_sql_participants($active);
+			$select = $query->execute();
+			
+			foreach ($select as $row){
+			  if($user_prof->uid<>$row->recipient){
+				$user_prof2 = user_load($row->recipient);
+				$with = $user_prof2->field_first_name['und'][0]['value'];
+			  } 
+			}
+			drupal_set_message('Your message with ' . $with . ' has been deleted');
+			drupal_goto('messages_private');	
+								
+		} else {
+			/*$con_query_delete = db_update('pm_index', 'pi')
+			->fields(array('deleted' => time(),));
+			$con_query_delete->leftJoin('field_data_field_job ', 'fdfj', 'fdfj.entity_id  = pi.thread_id');
+			$con_query_delete->condition('fdfj.field_job_value', $con_id, '=')
+			->condition('recipient', $user->uid, '=')
+			->execute();*/	
+
+			$con_query_delete = db_update('pm_index')
+			->fields(array('deleted' => time(),))
+			->condition('thread_id', $active, '=')
+			->condition('recipient', $user->uid, '=')
+			->execute();
+			
+			$query = privatemsg_sql_participants($active);
+			$select = $query->execute();
+			
+			foreach ($select as $row){
+				if($user_prof->uid<>$row->recipient){
+				  $user_prof2 = user_load($row->recipient);
+				  $with = $user_prof2->field_first_name['und'][0]['value'];
+				}
+			}
+			
+			drupal_set_message('You message chain with ' . $with . ' has been deleted');
+			drupal_goto('messages_private/' . $con_id . '/' . $active);
+		}
+		//$output .= cassowary_messages_list_employer($user_prof);
+	} elseif(in_array('writer', $user_prof->roles)) {
+		$con_query_delete = db_update('pm_index')
+		->fields(array('deleted' => time(),))
+		->condition('thread_id', $active, '=')
+		->condition('recipient', $user->uid, '=')
+		->execute();
+		
+		$query = privatemsg_sql_participants($active);
+		$select = $query->execute();
+		
+		foreach ($select as $row){
+			if($user_prof->uid<>$row->recipient){
+				$user_prof2 = user_load($row->recipient);
+				$with = $user_prof2->field_first_name['und'][0]['value'];
+			}
+		}
+		drupal_set_message('Your message with ' . $with . ' has been deleted');
+		drupal_goto('messages_private');
+	}
+		
+		
+	$output = "Conversation deleted";
+	return $output;	
+}
+
+function cassowary_messages_conversation_archive($con_id, $active) {
+	global $user;
+	
+	
+	$user_prof = $user;
+	$sqlaccess = db_select('pm_index', 'pi');
+	$sqlaccess -> fields('pi', array('mid', 'recipient'));
+	$sqlaccess -> condition('pi.thread_id', $active);
+	$sqlaccess -> condition('pi.recipient', $user_prof->uid);
+	$result = $sqlaccess->execute();
+	$result = ($result->fetchAssoc());
+	if(empty($result)) {
+		return 'No seached this conversation';
+	}	
+	
+	if (in_array('employer', $user->roles)) {
+		if ($con_id == 0) {
+			$con_query_archive_delete = db_delete('pm_our_tags_index')
+										->condition('tag_id', 2)
+										->condition('uid', $user->uid)
+ 										->condition('thread_id', $active)
+  										->execute();
+			
+			
+			$con_query_archive = db_insert('pm_our_tags_index')
+								 ->fields(array('tag_id' => 2,
+												'uid' => $user->uid,
+												'thread_id' => $active,))
+												->execute();			
+		} else {
+			$con_query_select_archive = db_select('field_data_field_job', 'fdfj');
+			$con_query_select_archive->fields('fdfj', array('entity_id'));
+			$con_query_select_archive->condition('field_job_value', $con_id);
+			$select = $con_query_select_archive->execute();
+			foreach ($select as $row) {
+
+				$con_query_archive_delete = db_delete('pm_our_tags_index')
+											->condition('tag_id', 2)
+											->condition('uid', $user->uid)
+	 										->condition('thread_id', $row->entity_id)
+	  										->execute();			
+				
+				$con_query_archive = db_insert('pm_our_tags_index')
+									 ->fields(array('tag_id' => 2,
+												    'uid' => $user->uid,
+												    'thread_id' => $row->entity_id,))
+												    ->execute();	
+			}		
+		}
+	} elseif(in_array('writer', $user->roles)) {
+			$con_query_archive_delete = db_delete('pm_our_tags_index')
+										->condition('tag_id', 2)
+										->condition('uid', $user->uid)
+ 										->condition('thread_id', $active)
+  										->execute();
+			
+			
+			$con_query_archive = db_insert('pm_our_tags_index')
+								->fields(array('tag_id' => 2,
+											   'uid' => $user->uid,
+											   'thread_id' => $active,))
+											   ->execute();
+	}
+	//$output = "Conversation archived";
+	drupal_set_message('Conversation archived');
+	drupal_goto('messages_private');
+	//return $output;		
+}
+
+function cassowary_messages_hire($con_id, $user_prof) {
+	
+	$output = "Writer hired";
+	return $output;	
+}
+
+function cassowary_messages_list_archive() {
+	global $user;
+	$user_prof = $user;
+	$output = ''; $list = '';
+	$output .= '<div class="header-line">';
+	$output .= '<div class="links-start">Messages <span>>></span></div>';
+	$output .= l('inbox', 'messages_private');
+	$output .= l('archive', 'messages_private/messages_archive');
+	$output .= '</div>';
+	if (in_array('employer', $user_prof->roles)) {
+		$list .= cassowary_messages_list_employer_archive($user_prof);
+	} elseif(in_array('writer', $user_prof->roles)) {
+		$list .= cassowary_messages_list_writer_archive($user_prof);
+	}
+	if(empty($list)) {
+		$list .= '<div class="no-messages">You have no archived messages</div>';
+	}
+	$output .= $list;	
+	return $output;
+}
+
+
+//employer's list
+function cassowary_messages_list_employer_archive($user_prof) {
+	$content = '';
+	//dsm($user_prof);
+	$query = db_select('field_data_field_job', 'fdfj');
+	$query -> fields('fdfj', array('entity_id', 'field_job_value'));
+	$query -> leftJoin('node ', 'n', 'n.nid = fdfj.field_job_value');
+	$query -> fields('n', array('title'));
+	$query -> leftJoin('pm_index', 'pi', 'pi.thread_id = fdfj.entity_id');
+	$query -> fields('pi', array('recipient'));
+	$query -> leftJoin('pm_our_tags_index', 'poti', 'poti.thread_id = fdfj.entity_id and poti.uid = ' . $user_prof->uid);
+	$query -> fields('poti', array('tag_id'));
+	$query -> condition('poti.tag_id', 2, '=');	
+	
+	$query -> condition('pi.recipient', $user_prof->uid, '<>');
+	$query -> condition('pi.deleted', 0, '=');
+	$query -> condition('n.uid', $user_prof->uid, '=');
+	$query -> groupBy('fdfj.field_job_value');
+	
+	$query_unread = db_select('pm_index', 'pmi');
+	$query_unread->addExpression('COUNT(field_job_value)', 'unread_count');
+	$query_unread -> leftJoin('field_data_field_job', 'fdfj', 'fdfj.entity_id = pmi.thread_id');
+	$query_unread -> fields('fdfj', array('field_job_value'));
+	$query_unread -> leftJoin('node ', 'n', 'n.nid = fdfj.field_job_value');
+	$query_unread
+	->condition('pmi.deleted', 0)
+	->condition('pmi.is_new', 1)
+	->condition('pmi.recipient', $user_prof->uid)
+	->condition('pmi.type', array('hidden', 'user'));
+	$query_unread -> condition('n.uid', $user_prof->uid, '=');
+	$select_unread = $query_unread->execute()->fetchAllKeyed(0,1);	
+	
+	$number = 0;
+	$select = $query->execute();
+	
+	foreach ($select as $row) {
+		
+	    $conversation_string['number'] = $number;	
+	  	$conversation_string['con_id'] = $row->field_job_value;
+	  	$conversation_string['link'] = l('RE: '.$row->title, 'messages_private/' . $conversation_string['con_id'] . '/' . $row->entity_id);
+	  	$conversation_string['link_view'] = l('View', 'messages_private/' . $conversation_string['con_id'] . '/' . $row->entity_id);
+	  	$conversation_string['link_archive'] = l('Archive', 'messages_private/archive/' . $conversation_string['con_id'] . '/' . $row->entity_id);
+	  	$conversation_string['link_delete'] = l('Delete', 'messages_private/delete/' . $conversation_string['con_id'] . '/' . $row->entity_id);
+	  	
+	  	if(isset($select_unread[$conversation_string['con_id']])) {
+	  		$conversation_string['unread'] = $select_unread[$conversation_string['con_id']];		
+	  	}
+	    $content .= theme('cassowary_messages_conversation_string', array('conversation_string'=>$conversation_string));  
+	    
+	    $number++;
+	}
+	
+	//simple conversations archive
+	$query2 = db_select('pm_index', 'pi');
+	$query2 -> fields('pi', array('recipient', 'thread_id'));
+	$query2 -> leftJoin('field_data_field_job', 'fdfj', 'pi.thread_id = fdfj.entity_id');
+	$query2 -> fields('fdfj', array('field_job_value'));
+	$query2 -> leftJoin('pm_message', 'pmm', 'pmm.mid = pi.mid');
+	$query2 -> leftJoin('pm_our_tags_index', 'poti', 'poti.thread_id = fdfj.entity_id and poti.uid = ' . $user_prof->uid);
+	$query2 -> fields('pmm', array('subject'));
+	$query2 -> fields('poti', array('tag_id'));
+	$query2 -> condition('fdfj.field_job_value', 0, '=');
+	$query2 -> condition('pi.deleted', 0, '=');
+	$query2 -> condition('poti.tag_id', 2, '=');
+	$query2 -> groupBy('pi.thread_id');
+	
+	$query_unread2 = db_select('pm_index', 'pmi');
+	$query_unread2 -> addExpression('COUNT(thread_id)', 'unread_count');
+	$query_unread2 -> fields('pmi', array('thread_id'));
+	$query_unread2
+	->condition('pmi.deleted', 0)
+	->condition('pmi.is_new', 1)
+	->condition('pmi.recipient', $user_prof->uid)
+	->condition('pmi.type', array('hidden', 'user'));
+	//$query_unread -> condition('n.uid', $user_prof->uid, '=');
+	$select_unread2 = $query_unread2->execute()->fetchAllKeyed(0,1);
+	
+	$select2 = $query2->execute();
+	//dsm($select2);
+	$number++;
+	foreach ($select2 as $row) {
+		//dsm($row);
+		$conversation_string['number'] = $number;
+		$conversation_string['con_id'] = $row->field_job_value;
+		$conversation_string['link'] = l('RE: '.$row->subject, 'messages_private/' . $conversation_string['con_id'] . '/' . $row->thread_id);
+		$conversation_string['link_view'] = l('View', 'messages_private/' . $conversation_string['con_id'] . '/' . $row->thread_id);
+		$conversation_string['link_archive'] = l('Archive', 'messages_private/archive/' . $conversation_string['con_id'] . '/' . $row->thread_id);
+		$conversation_string['link_delete'] = l('Delete', 'messages_private/delete/' . $conversation_string['con_id'] . '/' . $row->thread_id);
+	
+		if(isset($select_unread2[$row->thread_id])) {
+			$conversation_string['unread'] = $select_unread2[$row->thread_id];
+		}
+		$content .= theme('cassowary_messages_conversation_string', array('conversation_string'=>$conversation_string));
+			
+		$number++;
+	}
+	
+	//end simple conversations archive	
+	
+	return $content;	
+}
+
+//writer's list
+function cassowary_messages_list_writer_archive($user_prof) {
+	$content = '';
+	$query = db_select('field_data_field_job', 'fdfj');
+	$query -> fields('fdfj', array('entity_id', 'field_job_value'));
+	$query -> leftJoin('node ', 'n', 'n.nid = fdfj.field_job_value');
+	$query -> fields('n', array('title'));
+	$query -> leftJoin('pm_index', 'pi', 'pi.thread_id = fdfj.entity_id');
+	$query -> fields('pi', array('recipient'));
+	$query -> leftJoin('pm_message', 'pmm', 'pmm.mid = pi.mid');
+	$query -> fields('pmm', array('subject'));	
+	$query -> leftJoin('pm_our_tags_index', 'poti', 'poti.thread_id = fdfj.entity_id and poti.uid = ' . $user_prof->uid);
+	$query -> fields('poti', array('tag_id'));
+	$query -> condition('poti.tag_id', 2, '=');	
+	
+	//$query -> leftJoin('pm_tags_index', 'pti', 'pti.thread_id = pi.thread_id');
+	//$query -> fields('pti', array('tag_id'));
+	//$query -> condition('pti.tag_id', 1, '=');
+	
+	$query -> condition('pi.deleted', 0, '=');		
+	$query -> condition('pi.recipient', $user_prof->uid, '=');
+	//$query -> condition('n.uid', $user_prof->uid, '=');
+	$query -> groupBy('pi.thread_id');
+	//$query -> groupBy('fdfj.field_job_value');
+	
+	$query_unread = db_select('pm_index', 'pmi');
+	$query_unread -> fields('pmi', array('thread_id'));
+	$query_unread->addExpression('COUNT(thread_id)', 'unread_count');
+	/*$query_unread -> leftJoin('field_data_field_job', 'fdfj', 'fdfj.entity_id = pmi.thread_id');
+	$query_unread -> fields('fdfj', array('field_job_value'));
+	$query_unread -> leftJoin('node ', 'n', 'n.nid = fdfj.field_job_value');*/
+	$query_unread
+	->condition('pmi.deleted', 0)
+	->condition('pmi.is_new', 1)
+	->condition('pmi.recipient', $user_prof->uid)
+	->condition('pmi.type', array('hidden', 'user'));
+	$query_unread -> groupBy('pmi.thread_id');
+	//$query_unread -> condition('n.uid', $user_prof->uid, '=');
+	
+	$select_unread = $query_unread->execute()->fetchAllKeyed(0,1);		
+
+	$number = 0;
+	$select = $query->execute();
+	foreach ($select as $row) {
+		if($row->title){
+			$title = $row->title;
+		} else {
+			$title = $row->subject;
+		}		
+		$conversation_string['number'] = $number;
+		$conversation_string['con_id'] = $row->field_job_value;
+		$conversation_string['link'] = l('RE: '.$title, 'messages_private/' . $conversation_string['con_id'] . '/' . $row->entity_id);
+		$conversation_string['link_view'] = l('View', 'messages_private/' . $conversation_string['con_id'] . '/' . $row->entity_id);
+		$conversation_string['link_archive'] = l('Archive', 'messages_private/archive/' . $conversation_string['con_id'] . '/' . $row->entity_id);
+		$conversation_string['link_delete'] = l('Delete', 'messages_private/delete/' . $conversation_string['con_id'] . '/' . $row->entity_id);
+		
+		if(isset($select_unread[$row->entity_id])) {
+			$conversation_string['unread'] = $select_unread[$row->entity_id];
+		}	
+		
+		$content .= theme('cassowary_messages_conversation_string', array('conversation_string'=>$conversation_string));	  
+		$number++;
+	}
+	return $content;
+}
+
+function cassowary_messages_conversation($con_id, $active) {
+	drupal_add_css(drupal_get_path('module', 'cassowary_message') . '/cassowary_message.css');
+	drupal_add_js(drupal_get_path('module', 'cassowary_message') . '/cassowary_message.js');
+	global $user;
+	$user_prof = $user;
+	/*$query = db_select('pm_index', 'pi');
+	$query -> fields('pi', array('mid', 'recipient'));
+	$query -> fields('pmm', array('body', 'author', 'timestamp','subject'));
+	$query -> leftJoin('pm_message', 'pmm', 'pi.mid  = pmm.mid');
+	$query -> condition('pi.thread_id', $active, '=');
+	$query -> condition('pi.recipient', $user_prof->uid, '<>');
+	$query -> condition('pi.deleted', 0);
+	$query->orderby('pmm.timestamp', 'asc');*/
+	
+	$sqlaccess = db_select('pm_index', 'pi');
+	$sqlaccess -> fields('pi', array('mid', 'recipient'));
+	$sqlaccess -> condition('pi.thread_id', $active);
+	$sqlaccess -> condition('pi.recipient', $user_prof->uid);
+	$result = $sqlaccess->execute();	
+	$result = ($result->fetchAssoc());
+	if(empty($result)) {
+		return 'No seached this conversation';		
+	}
+	
+	$output = '';
+	
+	if (in_array('employer', $user_prof->roles)) {
+		$output = cassowary_messages_conversation_employer($user_prof, $con_id, $active);
+	} elseif(in_array('writer', $user_prof->roles)) {
+		$output = cassowary_messages_conversation_writer($user_prof, $con_id, $active);		
+	}
+	return $output;	
+}
+
+function cassowary_messages_conversation_employer($user_prof, $con_id, $active){
+	module_load_include('inc', 'privatemsg', 'privatemsg.pages');
+	$content = '';
+	$header = ''; $right_conversation = ''; $header_page = '';
+	$left = ''; $middle = ''; $right = '';
+	$header .= '<div class="header-line">';
+	$header .= '<div class="links-start">Messages <span>>></span></div>';
+	$header .= l('inbox', 'messages_private');
+	$header .= '<span>>></span>';
+	if($con_id == 0) {
+		/*$query = db_select('field_data_field_job', 'fdfj');
+		$query -> fields('fdfj', array('entity_id'));*/
+		$query = db_select('pm_index', 'pi');
+		$query -> fields('pi', array('recipient', 'thread_id'));
+		$query -> condition('pi.thread_id', $active, '=');
+		$query -> condition('pi.recipient', $user_prof->uid, '<>');
+		$query -> condition('pi.deleted', 0);
+		$query -> groupBy('pi.recipient');	
+		//dsm($user_prof);	
+	} else {
+	  $query = db_select('field_data_field_job', 'fdfj');
+	  $query -> fields('fdfj', array('entity_id'));
+	  $query -> leftJoin('pm_index ', 'pi', 'pi.thread_id  = fdfj.entity_id');
+	  $query -> fields('pi', array('recipient', 'thread_id'));
+	  $query -> condition('fdfj.field_job_value', $con_id, '=');	
+	  $query -> condition('pi.recipient', $user_prof->uid, '<>');
+	  $query -> condition('pi.deleted', 0);	  
+	  $query -> groupBy('pi.recipient');
+	}
+	$number = 0;
+	$user_string = array();
+	$select = $query->execute();
+	foreach ($select as $row) {
+		//dsm($row);
+		$user_string['number'] = $number;
+		$user_string['uid'] = $row->recipient;
+		if($active == $row->thread_id){
+		  $user_string['addclass'] = 'active';
+		  $worker = user_load($row->recipient);
+		} else {
+		  $user_string['addclass'] = 'deactive';			
+		}
+		$user_prof2 = user_load($row->recipient);
+		$account = user_view($user_prof2);
+		$user_string['avatar'] = render($account['field_avatar']);
+		$user_string['name'] = $user_prof2->field_first_name['und'][0]['value'];
+		if(isset($row->entity_id)){
+			$user_string['link'] = l($user_string['name'], 'messages_private/' . $con_id . '/' . $row->entity_id);
+		} else {
+			$user_string['link'] = l($user_string['name'], 'messages_private/' . $con_id . '/' . $row->thread_id);			
+		}
+		$left .= theme('cassowary_messages_page_string', array('user_string'=>$user_string));
+		$number++;
+	}
+
+	$query = db_select('pm_index', 'pi');
+	$query -> fields('pi', array('mid', 'recipient'));
+	$query -> fields('pmm', array('body', 'author', 'timestamp','subject'));
+	$query -> leftJoin('pm_message', 'pmm', 'pi.mid  = pmm.mid');
+	$query -> condition('pi.thread_id', $active, '=');
+	$query -> condition('pi.recipient', $user_prof->uid, '=');
+	$query -> condition('pi.deleted', 0);
+	$query->orderby('pmm.timestamp', 'asc');
+
+	
+	$select = $query->execute();
+	$number = 0;
+	$user_message_string = array();
+	foreach ($select as $row) {	
+		$string_title = $row->subject;
+		//if($row->author == $user_prof->uid) {
+			$num_query_read = db_update('pm_index')
+			->fields(array('is_new' => 0,))
+			->condition('mid', $row->mid, '=')
+			->condition('recipient', $user_prof->uid, '=')
+			->execute();
+		//}
+			
+		$user_message_string['number'] = $number;
+		$user_message_string['body'] = $row->body;
+		$user_prof3 = user_load($row->author);
+		$account = user_view($user_prof3);
+		$user_message_string['avatar'] = render($account['field_avatar']);
+		
+		$user_message_string['author'] = $user_prof3->field_first_name['und'][0]['value'];
+		if($user_prof->uid <> $row->author){
+			$user_message_string['view_profile'] = l('View profile', 'user/'.$row->author.'/portfolio');
+		}		
+		
+		
+		$difference = time() - $row->timestamp;
+		$user_message_string['ago'] = format_interval($difference, 1) . t(" ago");
+		$right_conversation .= theme('cassowary_messages_message_string', array('user_message_string'=>$user_message_string));
+		$number++;
+	}	
+	
+	if($con_id<>0) {
+	  $job = node_load($con_id);
+	}
+	if(isset($job->title)) {
+		$header_page .= 'RE: ' . $job->title;
+	}  elseif(isset($string_title)) {
+		$header_page .= $string_title;
+	}
+	$header .= '<span class="active-item-header">' . $header_page . '</span></div>';
+	$right .= '<div class="conversation-header">' . $header_page . '</div>';
+	$right .= '<div class="messages-wrapper">';
+	$right .= $right_conversation;
+	$right .= '</div>';	
+	
+	$thread = privatemsg_thread_load($active);
+	//dsm($thread);
+	$right .= render(drupal_get_form('privatemsg_new', $thread['participants'], $thread['subject-original'], $thread['thread_id'], $thread['read_all']));
+	
+
+	if (isset($job->workflow) &&  $job->workflow == 3 && cassowary_job_workflow_hire_access($worker, $job)) {
+		//$right .= '<div class="hire-writer">' . l(t('Hire this writer'), 'payment/job/'. $worker->uid .'/'. $con_id) . '</div>';
+
+		if($job->field_hired_employee){
+		  $right .= '<div class="hiring-writer">' . t('Thank you for hiring this writer!'). '</div>';
+		} else {
+		  $right .= '<div class="hire-writer"><span>' . t('Hire this writer'). '</span></div>';
+		  $form = render(drupal_get_form('cassowary_payment_page', $worker, $job, TRUE));
+		  $right .= $form;
+		}
+	}
+
+	//$right .= l('Hire this writer', 'messages_private/hire/' . $con_id . '/' . $user_prof->nid);
+	if($con_id == 0) {
+	  $right .= '<div class="delete-this-message">' . l('Delete this message', 'messages_private/delete/0/' . $active) . '</div>';
+	} else {
+	  $right .= '<div class="delete-this-message">' . l('Delete this message', 'messages_private/delete/' . $con_id . '/' . $active) . '</div>';		
+	}
+	
+	$content = theme('cassowary_messages_page', array('left'=>$left, 'middle'=>$middle, 'pager'=>NULL, 'right'=>$right, 'header'=>$header));
+	
+	return $content;
+}
+
+function cassowary_messages_conversation_writer($user_prof, $con_id, $active){
+	//dsm($user_prof);dsm($con_id);dsm($active);
+	module_load_include('inc', 'privatemsg', 'privatemsg.pages');
+	$content = '';
+	$header = ''; $right_conversation = ''; $header_page = '';
+	$left = ''; $middle = ''; $right = '';
+	$header .= '<div class="header-line">';
+	$header .= '<div class="links-start">Messages <span>>></span></div>';
+	$header .= l('inbox', 'messages_private');
+	$header .= '<span>>></span>';
+	$query = db_select('field_data_field_job', 'fdfj');
+	$query -> fields('fdfj', array('entity_id'));
+	$query -> leftJoin('pm_index ', 'pi', 'pi.thread_id  = fdfj.entity_id');
+	$query -> fields('pi', array('recipient', 'thread_id'));
+	$query -> condition('fdfj.field_job_value', $con_id, '=');
+	$query -> condition('pi.recipient', $user_prof->uid, '<>');
+	$query -> condition('pi.thread_id', $active, '=');
+	$query -> condition('pi.deleted', 0);
+	$query -> groupBy('pi.recipient');
+	$number = 0;
+	$user_string = array();
+	$select = $query->execute();
+	foreach ($select as $row) {
+		$user_string['number'] = $number;
+		$user_string['uid'] = $row->recipient;
+		//$user_string['addclass'] = 'deactive';
+		if($active == $row->thread_id){
+			$user_string['addclass'] = 'active';
+		} else {
+			$user_string['addclass'] = 'deactive';
+		}		
+		$user_prof2 = user_load($row->recipient);
+		$account = user_view($user_prof2);
+		$user_string['avatar'] = render($account['field_avatar']);
+		$user_string['name'] = $user_prof2->field_first_name['und'][0]['value'];
+		$user_string['link'] = l($user_string['name'], 'messages_private/' . $con_id . '/' . $row->entity_id);
+		$left .= theme('cassowary_messages_page_string', array('user_string'=>$user_string));
+		$number++;
+	}
+
+	$query = db_select('pm_index', 'pi');
+	$query -> fields('pi', array('mid', 'recipient'));
+	$query -> fields('pmm', array('body', 'author', 'timestamp','subject'));
+	$query -> leftJoin('pm_message', 'pmm', 'pi.mid  = pmm.mid');
+	$query -> condition('pi.thread_id', $active, '=');
+	$query -> condition('pi.recipient', $user_prof->uid, '<>');
+	$query -> condition('pi.deleted', 0);
+	$query->orderby('pmm.timestamp', 'asc');
+
+	
+	$select = $query->execute();
+	$number = 0;
+	$user_message_string = array();
+	foreach ($select as $row) {
+			$string_title = $row->subject;
+		//if($row->author == $user_prof->uid) {		
+			$num_query_read = db_update('pm_index')
+			->fields(array('is_new' => 0,))
+			->condition('mid', $row->mid, '=')
+			->condition('recipient', $user_prof->uid, '=')
+			->execute();
+		//}	
+
+		$user_message_string['number'] = $number;
+		$user_message_string['body'] = $row->body;
+		$user_prof3 = user_load($row->author);
+		$account = user_view($user_prof3);
+		$user_message_string['avatar'] = render($account['field_avatar']);
+		
+		$user_message_string['author'] = $user_prof3->field_first_name['und'][0]['value'];
+		if($user_prof->uid <> $row->author){
+		  $user_message_string['view_profile'] = l('View profile', 'user/'.$row->author.'/portfolio');
+		}
+		$difference = time() - $row->timestamp;
+		$user_message_string['ago'] = format_interval($difference, 1) . t(" ago");
+		$right_conversation .= theme('cassowary_messages_message_string', array('user_message_string'=>$user_message_string));
+		$number++;
+	}
+	if($con_id<>0){
+	  $job = node_load($con_id);
+	}
+	if(isset($job) && $job->title) {
+	    $header_page .= 'RE: ' . $job->title;
+	}  else {
+		$header_page .= $string_title;
+	}
+	$header .= '<span class="active-item-header">' . $header_page . '</span></div>';
+	//$header .= $header_page . '</div>';	
+	$right .= '<div class="conversation-header">' . $header_page . '</div>';
+	$right .= '<div class="messages-wrapper">';
+	$right .= $right_conversation;
+	$right .= '</div>';
+	$thread = privatemsg_thread_load($active);
+	$right .= render(drupal_get_form('privatemsg_new', $thread['participants'], $thread['subject-original'], $thread['thread_id'], $thread['read_all']));
+	$content = theme('cassowary_messages_page', array('left'=>$left, 'middle'=>$middle, 'pager'=>NULL, 'right'=>$right, 'header'=>$header));
+
+	return $content;
+}
+
+
+
+function cassowary_messages_page() {
+  global $user;
+  //dsm($user);
+  $output = '';
+  $left = ''; $middle = ''; $right = '';
+  
+  /*$query = db_select('pm_index', 'pi'); 
+  $query->fields('pi', array('mid', 'recipient'));
+  //->condition('pi.mid', 'job', '=');
+  
+  $query->leftJoin('pm_message ', 'pmm', 'pmm.mid  = pi.mid');
+  //$query->leftJoin('pm_message ', 'pm', 'pm.author  = ' . $user->uid);
+  //$query->condition('pi.mid', 'pm.mid', '=');
+  $query->condition('pmm.author', $user->uid, '=');
+  $query->condition('pi.recipient', $user->uid, '<>');
+  
+  //$select = $query->extend('PagerDefault')->limit(10)->execute();
+  $select = $query->execute();*/
+  
+  
+  $query = db_select('pm_index', 'pi');
+  $query -> fields('pi', array('mid', 'recipient'));
+  $query -> fields('pi2', array('recipient'));
+  //->condition('pi.mid', 'job', '=');
+  
+  $query -> leftJoin('pm_index ', 'pi2', 'pi2.mid  = pi.mid');
+  //$query->leftJoin('pm_message ', 'pm', 'pm.author  = ' . $user->uid);
+  //$query->condition('pi.mid', 'pm.mid', '=');
+  $query -> condition('pi.recipient', $user->uid, '=');
+  $query -> condition('pi2.recipient', $user->uid, '<>');
+  $query -> groupBy('pi2.recipient');
+  
+  //$select = $query->extend('PagerDefault')->limit(10)->execute();
+  $select = $query->execute();
+  
+  $number = 0;
+  $user_string = array();
+  foreach ($select as $row) { 	
+    $user_string['number'] = $number;	
+  	$user_string['uid'] = $row->pi2_recipient;
+  	
+  	$user_prof = user_load($row->pi2_recipient);
+  	$account = user_view($user_prof);
+  	$user_string['avatar'] = render($account['field_avatar']);
+  	$user_string['name'] = $user_prof->field_first_name['und'][0]['value'];
+  	$user_string['link'] = l($user_string['name'], 'messages_cass/' . $user_string['uid']);
+    $left .= theme('cassowary_messages_page_string', array('user_string'=>$user_string));  
+    $number++;
+  }
+  
+  if(arg(1)){
+  	$query = db_select('pm_index', 'pi');
+  	$query -> fields('pi', array('mid', 'recipient'));
+  	$query -> fields('pi2', array('recipient'));
+  	$query -> fields('pmm', array('body', 'author', 'timestamp'));
+  	//->condition('pi.mid', 'job', '=');
+  	
+  	$query -> leftJoin('pm_index ', 'pi2', 'pi2.mid  = pi.mid');
+  	$query -> leftJoin('pm_message', 'pmm', 'pi.mid  = pmm.mid');
+  	//$query->leftJoin('pm_message ', 'pm', 'pm.author  = ' . $user->uid);
+  	//$query->condition('pi.mid', 'pm.mid', '=');
+  	$query -> condition('pi.recipient', arg(1), '=');
+  	$query -> condition('pi2.recipient', $user->uid, '=');
+  	//$query -> groupBy('pi2.recipient');
+  	$query->orderby('pmm.timestamp', 'desc');
+  	
+  	//$select = $query->extend('PagerDefault')->limit(10)->execute();
+  	$select = $query->execute();
+  	$number = 0;
+  	$user_message_string = array();
+  	foreach ($select as $row) {
+  		$user_message_string['number'] = $number;
+  		$user_message_string['body'] = $row->body;
+  		$user_prof = user_load($row->author);
+  		$user_message_string['author'] = $user_prof->field_first_name['und'][0]['value'];
+  		$difference = time() - $row->timestamp; 		
+  		$user_message_string['ago'] = format_interval($difference, 1) . t(" ago");
+  		//dsm($row); 
+  		/*$user_prof = user_load($row->pi2_recipient);
+  		$user_string['name'] = $user_prof->field_first_name['und'][0]['value'];
+  		$user_string['link'] = l($user_string['name'], 'messages_cass/' . $user_string['uid']);
+  		dsm($user_prof);*/
+  		$right .= theme('cassowary_messages_message_string', array('user_message_string'=>$user_message_string));
+  		$number++;
+  	} 
+  	//$right .= render(drupal_get_form('cassowary_message_enter_form'));
+  	$account = $user;
+  	$argument = 'list';
+  	//$mydfdf = privatemsg_list_page();dsm($mydfdf);
+  	//$right .= render(drupal_get_form('privatemsg_new', $argument, $account));
+  	$right .= render(drupal_get_form('privatemsg_new'));
+  }
+  
+  $output = theme('cassowary_messages_page', array('left'=>$left, 'middle'=>$middle, 'pager'=>NULL, 'right'=>$right));
+  
+  return $output; 	
+}
+
+
+function cassowary_message_enter_form($form, &$form_state){
+	$form['message'] = array(
+			'#title' => t('message'),
+			'#type' => 'textarea',
+			'#placeholder' => t('Type your reply...'),
+	);	
+	$form['reply'] = array(
+			'#type' => 'submit',
+			'#value' => 'Reply',
+	);
+	return $form;	
+}
+
+function cassowary_message_enter_form_submit($form, &$form_state){
+	global $user;
+	$author = clone $user;
+	$options = array();
+		
+	$message = (object)$options;
+	$message->subject = 'none';
+	//dsm($form);dsm($form_state);
+	$message->body = $body;
+	// Make sure that recipients are keyed correctly and are not added
+	// multiple times.
+	/*foreach ($recipients as $recipient) {
+		if (!isset($recipient->type)) {
+			$recipient->type = 'user';
+			$recipient->recipient = $recipient->uid;
+		}
+		$message->recipients[privatemsg_recipient_key($recipient)] = $recipient;
+	}
+	
+	// Apply defaults - this will not overwrite existing keys.
+	if (!isset($message->author)) {
+		$message->author = $author;
+	}
+	if (!isset($message->timestamp)) {
+		$message->timestamp = REQUEST_TIME;
+	}
+	if (!isset($message->format)) {
+		$message->format = filter_default_format($message->author);
+	}
+	$validated = _privatemsg_validate_message($message);
+	if ($validated['success']) {
+		$validated['message'] = _privatemsg_send($message);
+		if ($validated['message'] !== FALSE) {
+			_privatemsg_handle_recipients($validated['message']->mid, $validated['message']->recipients, FALSE);
+		}
+	}*/	
+}
+
+function cassowary_messages_direct_conversation($receiver){
+  global $user;
+  module_load_include('inc', 'privatemsg', 'privatemsg.pages');
+  $output = '';$right = '';
+  $user_author = $user;
+  $user_receiver = user_load($receiver);
+  $participants = array();
+  $participants[] = $user_receiver;
+  $participants[] = $user_author;
+  //$right .= render(drupal_get_form('privatemsg_new', $thread['participants'], $thread['subject-original'], $thread['thread_id'], $thread['read_all']));	
+  $right .= render(drupal_get_form('privatemsg_new',$participants));	
+  $output = $right;
+  return $output;
+}
+
+/**
+ * Implements hook_theme().
+ */
+
+function cassowary_message_theme($existing, $type, $theme, $path) {
+	return array(
+			'cassowary_messages_page' => array(
+					'variables' => array('left'=>NULL, 'middle'=>NULL, 'right'=>NULL, 'pager'=>NULL, 'header'=>NULL, ),
+					'template' => 'cassowary-messages-page',
+					'path' => $path,
+			),	
+			'cassowary_messages_page_string' => array(
+					'variables' => array('user_string'=>NULL,),
+					'template' => 'cassowary-messages-page-string',
+					'path' => $path,
+			),
+			'cassowary_messages_message_string' => array(
+					'variables' => array('user_message_string'=>NULL,),
+					'template' => 'cassowary-messages-message-string',
+					'path' => $path,
+			),	
+			'cassowary_messages_conversation_string' => array(
+					'variables' => array('conversation_string'=>NULL,),
+					'template' => 'cassowary-messages-conversation-string',
+					'path' => $path,
+			),			
+	);	
+}
+
+/**
+ * Implements hook_alter_form().
+ */
+function cassowary_message_form_alter(&$form, &$form_state, $form_id) {	
+	if ($form_id == 'privatemsg_new') {
+		if(arg(0) == 'messages_private'){
+			$form_state['redirect'] = 'messages_private';
+			if(isset($form['recipient'])){
+			  //dsm($form);	
+			  $form['#submit'][] = "cassowary_message_new_submit";
+			  $form['actions']['submit']['#value'] = 'Send';
+			  $form['subject']['#required'] = TRUE;
+			  $form['body']['#required'] = TRUE;
+			  $form['recipient']['#type'] = 'hidden';
+			  $firstname = $form_state['build_info']['args'][0][0];
+			  $form['firstname']['#markup'] = '<div class="first-name">' . $firstname->field_first_name['und'][0]['value'] . '</div>';
+			  $form['firstname']['#weight'] = -15;
+			} else {
+			  $form['actions']['submit']['#value'] = 'Reply';
+			}		
+			$form['actions']['cancel']['#markup'] = str_replace('>Clear<', '>Cancel<', $form['actions']['cancel']['#markup']);	
+			$form['body']['#placeholder'] = t('Type your reply...');
+			//dsm($form);dsm($form_state['build_info']['args']);dsm($form_state['build_info']['args'][0][0]);
+		}
+	}	
+}
+
+/**
+ * Second submit callback for the privatemsg_new form.
+ */
+function cassowary_message_new_submit($form, &$form_state) {
+	$form_state['redirect'] = 'messages_private';
+}
+
+function cassowary_message_writer_hired($writer = NULL, $job = NULL){
+  $node_prof = node_load($job);
+  dsm($node_prof);
+
+}

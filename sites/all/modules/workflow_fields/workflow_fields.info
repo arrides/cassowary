@@ -1,0 +1,13 @@
+name = Workflow Fields
+description = Adds per-field settings to each workflow state.
+package = Workflow
+dependencies[] = field
+dependencies[] = workflow
+core = 7.x
+
+; Information added by drupal.org packaging script on 2012-07-20
+version = "7.x-1.x-dev"
+core = "7.x"
+project = "workflow_fields"
+datestamp = "1342746852"
+
