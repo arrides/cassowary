@@ -205,7 +205,7 @@ $databases = array (
   array (
     'default' => 
     array (
-      'database' => 'whenyouw_cassowary2',
+      'database' => 'whenyouw_cassowary',
       'username' => 'whenyouw_cassowa',
       'password' => 'fWIfFOgIO*@)',
       'host' => 'localhost',
