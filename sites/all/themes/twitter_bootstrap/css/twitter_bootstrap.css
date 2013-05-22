@@ -206,3 +206,8 @@ body.page-node-add-facebook-post span.form-required
 #privatemsg-new.ctools-use-modal-processed .form-item-recipient, #privatemsg-new.ctools-use-modal-processed .form-item-subject {
   display: none;	 	
 }
+
+.search-job-middle .search-job-string .description {
+  overflow: hidden;
+  max-height: 90px;
+}

@@ -214,6 +214,9 @@ function cassowary_main_preprocess_page(&$variables) {
   if(arg(0) == 'search_resume') {
     drupal_set_title(t('Portfolio Search'));
   }
+  if(arg(0) == 'search_job') {
+  	drupal_set_title(t('Job Search'));
+  }
   if($variables['user']->uid != 1) {
     unset($variables['tabs']['#primary']);
   }

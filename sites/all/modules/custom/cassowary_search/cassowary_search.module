@@ -60,7 +60,18 @@ function cassowary_search_menu() {
   
   		'access callback' => TRUE,
   		'access arguments' => array('access company autocomplete'),
-  );  
+  ); 
+
+  $items['search_job_auto/location'] = array(
+  		'type' => MENU_CALLBACK,
+  		'title' => 'Location',
+  		'page callback' => 'cassowary_search_location_autocomplete_callback',
+  		//'access arguments' => TRUE,
+  
+  		'access callback' => TRUE,
+  		'access arguments' => array('access company autocomplete'),
+  );
+    
   $items['saved-searches'] = array(
   		'type' => MENU_CALLBACK,
   		'title' => 'Saved searches',
@@ -85,6 +96,7 @@ function cassowary_search_menu() {
 function cassowary_search_search_execute($keys = NULL, $conditions = NULL) {
 	// Build matching conditions
 	//jobs or resumes
+	//dsm($conditions);
 	$keys2 = explode(' ', $keys);
 	//$keys = explode(' ', $keys);
 	//dsm($keys2);
@@ -132,6 +144,11 @@ function cassowary_search_search_execute($keys = NULL, $conditions = NULL) {
 		  $query->orderby('n.created', 'desc');
 		}
 		
+		if(isset($conditions['where'])){
+			$query -> leftJoin('field_data_field_location', 'fdfl', 'fdfl.entity_id = n.nid AND fdfl.entity_type = :entity_type', array(':entity_type' => "node"));
+			$query -> leftJoin('geonames_usa_cityinfo', 'guc', 'guc.gnciid = fdfl.field_location_gnciid');
+			$query -> condition('guc.name', $conditions['where'], '=');
+		}		
 		/*// Insert special keywords.
 		$query->setOption('type', 'n.type');
 		$query->setOption('language', 'n.language');
@@ -155,6 +172,7 @@ function cassowary_search_search_execute($keys = NULL, $conditions = NULL) {
 		$results = array();		
 		
 	} else {
+		//dsm($conditions);
 		//dsm('here query');
 		//$query = db_select('search_index', 'i', array('target' => 'slave'))->extend('SearchQuery');//->extend('PagerDefault');
 		/*if(isset($conditions['choose'])) { 
@@ -188,9 +206,14 @@ function cassowary_search_search_execute($keys = NULL, $conditions = NULL) {
 		if(isset($conditions['sortby']) && ($conditions['sortby'] == 'date')){
 			$query->orderby('n.created', 'desc');
 		}
+		
+		if(isset($conditions['where'])){
+			$query -> leftJoin('field_data_field_location', 'fdfl', 'fdfl.entity_id = n.uid AND fdfl.entity_type = :entity_type', array(':entity_type' => "user"));
+			$query -> leftJoin('geonames_usa_cityinfo', 'guc', 'guc.gnciid = fdfl.field_location_gnciid');
+			$query -> condition('guc.name', $conditions['where'], '=');			
+		}
 
 		$find = $query->limit(10)->execute();
-		
 		$results = array();		
 	}
 	
@@ -382,8 +405,11 @@ function cassowary_search_job($sid = NULL, $action = NULL) {
 	  }
 	  if(isset($_SESSION['search_job']['where'])){
 	  	//dsm($_SESSION['search_job']['where']);
-	  	$data_filter['search_job']['where'] = $_SESSION['search_job']['where']; 	
+	  	$data_filter['search_job']['where'] = $_SESSION['search_job']['where'];
+	  	$conditions['where'] = $data_filter['search_job']['where'];
+	  	unset($_SESSION['search_job']['where']);
 	  }
+	  
 	  
 	 // dpm($left);
 	  $middle = "";
@@ -486,10 +512,16 @@ function cassowary_search_job($sid = NULL, $action = NULL) {
 	      $query->condition('field_industry_value', $industry, '=');
 	    }
 	    
+	    if(isset($conditions['where'])){
+	    	$query -> leftJoin('field_data_field_location', 'fdfl', 'fdfl.entity_id = n.nid AND fdfl.entity_type = :entity_type', array(':entity_type' => "node"));
+	    	$query -> leftJoin('geonames_usa_cityinfo', 'guc', 'guc.gnciid = fdfl.field_location_gnciid');
+	    	$query -> condition('guc.name', $conditions['where'], '=');
+	    }
+	    
 	    $query->orderby('n.created', 'desc');
 
 	    $select = $query->extend('PagerDefault')->limit(10)->execute();
-
+		//dsm($select);
 	 
 	  $number = 0;
 	  $middle = '';
@@ -702,8 +734,9 @@ function cassowary_search_resume($sid = NULL, $action = NULL) {
 	    
 	  }
 	  if(isset($_SESSION['search_job']['where'])){
-	  	//dsm($_SESSION['search_job']['where']);
-	  	$data_filter['search_job']['where'] = $_SESSION['search_job']['where']; 	
+	  	$data_filter['search_job']['where'] = $_SESSION['search_job']['where']; 
+	  	$conditions['where'] = $_SESSION['search_job']['where'];
+	  	unset($_SESSION['search_job']['where']);
 	  }
 	  
 	 // dpm($left);
@@ -786,7 +819,7 @@ function cassowary_search_resume($sid = NULL, $action = NULL) {
   $middle = '';
   //$rigth = render(drupal_get_form('cassowary_search_save_form'));
   //if(!isset($_SESSION['search_job']['redirect']) && !isset($data_filter['search_job']['what'])){
-    if(!isset($data_filter['search_job']['what'])){  	
+  if(!isset($data_filter['search_job']['what'])){  	
 	    $query = db_select('users', 'u');    
 	    //$query -> leftJoin('field_data_field_job_type', 'job_type', 'n.nid = job_type.entity_id');
 	    
@@ -799,7 +832,11 @@ function cassowary_search_resume($sid = NULL, $action = NULL) {
 	      ->condition('ur.rid', 4, '=')
 	      ->condition('n.type', $job_type, 'IN')
 	      ->condition('n.created', time()-$timepost,'>');
-
+	    if(isset($conditions['where'])){
+	      $query -> leftJoin('field_data_field_location', 'fdfl', 'fdfl.entity_id = n.uid AND fdfl.entity_type = :entity_type', array(':entity_type' => "user"));
+	      $query -> leftJoin('geonames_usa_cityinfo', 'guc', 'guc.gnciid = fdfl.field_location_gnciid');
+	      $query -> condition('guc.name', $conditions['where'], '=');
+	    }
 	    $query -> distinct();
 	    $query -> orderby('n.created', 'desc');
 	    //dsm($job_type);dsm($timepost);
@@ -1160,10 +1197,19 @@ function cassowary_search_left_author_form($form, &$form_state, $data_filter){
   	'#default_value' => (isset($data_filter['search_job']['what'])?$data_filter['search_job']['what']:""),
   );
   $form['searchleftauthor']['where'] = array(
+  	/*'#type' => 'textfield',
+  	'#title' => t('Location'),
+  	//'#placeholder' => t('Where?'),
+  	'#default_value' => (isset($data_filter['search_job']['where'])?$data_filter['search_job']['where']:""),*/
+  		
   	'#type' => 'textfield',
   	//'#title' => t('Where'),
-  	'#placeholder' => t('Where?'),
+  	'#title' => t('Location'),
+  	//'#placeholder' => t('Where?'),
   	'#default_value' => (isset($data_filter['search_job']['where'])?$data_filter['search_job']['where']:""),
+  	'#autocomplete_path' => 'search_job_auto/location',
+  	'#element_validate' => array('cassowary_search_location_autocomplete_validate'),  		
+  		
   );    
   $form['searchleftauthor']['sortby'] = array(
     '#type' => 'radios',
@@ -1200,6 +1246,9 @@ function cassowary_search_left_author_form($form, &$form_state, $data_filter){
   	'#element_validate' => array('cassowary_search_industry_autocomplete_validate'),
    ); 
 
+  $form['searchleftauthor']['experience'] = array(
+  		'#markup' => 'Writing type',
+  );
   
   $form['searchleftauthor']['facebook'] = array(
     '#type' => 'checkbox',
@@ -1234,7 +1283,7 @@ function cassowary_search_left_author_form($form, &$form_state, $data_filter){
   );      
   $form['submitleftauthor'] = array(
     '#type' => 'submit',
-    '#value' => 'Search for Writers',
+    '#value' => 'Search',
   );
   if($user->uid){
     $form['searchsave']['name'] = array(
@@ -1354,16 +1403,20 @@ function cassowary_search_left_author_resume_form($form, &$form_state, $data_fil
 	
 	$form['searchleftauthor']['what'] = array(
 			'#type' => 'textfield',
-			//'#title' => t('What'),
-			'#placeholder' => t('What?'),
+			'#title' => t('Keywords'),
+			'#placeholder' => t('Comedy'),//t('What?'),
 			'#default_value' => (isset($data_filter['search_job']['what'])?$data_filter['search_job']['what']:""),
 	);
 	$form['searchleftauthor']['where'] = array(
 			'#type' => 'textfield',
 			//'#title' => t('Where'),
-			'#placeholder' => t('Where?'),
+			'#title' => t('Location'),
+			//'#placeholder' => t('Where?'),
 			'#default_value' => (isset($data_filter['search_job']['where'])?$data_filter['search_job']['where']:""),
+			'#autocomplete_path' => 'search_job_auto/location',
+			'#element_validate' => array('cassowary_search_location_autocomplete_validate'),
 	);
+	
 	/*$form['searchleftauthor']['sortby'] = array(
 			'#type' => 'radios',
 			'#options' => array(
@@ -1373,7 +1426,9 @@ function cassowary_search_left_author_resume_form($form, &$form_state, $data_fil
 			'#title' => t('Sort by'),
 			'#default_value' => $data_filter['search_job']['sortby'],
 	);*/
-
+	$form['searchleftauthor']['experience'] = array(
+	  '#markup' => 'Work Experience',
+	);
 	$form['searchleftauthor']['facebook'] = array(
 			'#type' => 'checkbox',
 			'#title' => t('Facebook'),
@@ -1407,7 +1462,7 @@ function cassowary_search_left_author_resume_form($form, &$form_state, $data_fil
 	);
 	$form['submitleftauthor'] = array(
 			'#type' => 'submit',
-			'#value' => 'Search for Writers',
+			'#value' => 'Search',
 	);
 	if($user->uid){
 		$form['searchsave']['name'] = array(
@@ -1464,9 +1519,10 @@ function cassowary_search_left_author_resume_form_submit($form, &$form_state){
 		}
 		//dsm($what);
 		//what end		
+		if(!empty($form_state['values']['where'])){
+		  $_SESSION['search_job']['where'] = $form_state['values']['where'];
+		}
 		
-		$_SESSION['search_job']['where'] = $form_state['values']['where'];
-
 		if(isset($form_state['values']['companyname'])){
 			$_SESSION['search_job']['company'] = $form_state['values']['companyname'];
 		}
@@ -1662,6 +1718,52 @@ function cassowary_search_company_autocomplete_validate($element, &$form_state, 
 	};
 }
 
+function cassowary_search_location_autocomplete_callback($string = ''){//$field_name, $string = '') {
+	$matches = array();
+	$query = db_select('geonames_usa_cityinfo', 'guc');
+
+	$return = $query
+	->fields('guc', array('name'))
+	->condition('guc.name', '%' . db_like($string) . '%', 'LIKE')
+	->range(0, 10)
+	->execute();
+
+	foreach ($return as $row) {
+		$matches[$row->name] = check_plain($row->name);
+	}
+	drupal_json_output($matches);
+}
+
+function cassowary_search_location_autocomplete_validate($element, &$form_state, $form) {
+	$value = NULL;
+	if (!empty($element['#value'])) {
+		//$state = $form_state['values'][$element['#array_parents'][0]][$element['#array_parents'][1]][$element['#array_parents'][2]]['gnstid'];
+		$query = db_select('geonames_usa_cityinfo', 'guc');
+
+		$return = $query
+		->fields('guc', array('name'))
+		->condition('guc.name', $element['#value'], '=')
+		->range(0, 10)
+		->execute();
+		$value_return = $return->fetchAssoc();
+
+		// Try to get a match from the input string when the user didn't use the
+		// autocomplete but filled in a value manually.
+		$value = $value_return['name'] ? $value_return['name'] : '';
+	}
+
+	$clicked_button = end($form_state['triggering_element']['#parents']);
+
+	if (empty($value) && !empty($element['#value']) && (!in_array($clicked_button, array('upload_button', 'remove_button')))) {
+		form_error($element, t('!location is not valied value.', array('!location' => $element['#title'])));
+	}
+	else {
+		// Update the value of this element so the field can validate the product IDs.
+		form_set_value($element, $value, $form_state);
+	};
+}
+
+
 
 function cassowary_search_schema() {
 	$schema['cassowary_search_save'] = array(
@@ -1847,7 +1949,7 @@ function pager_count_job($number) {
 function pager_count_resume($number) {
 	global $pager_page_array, $pager_total, $pager_limits, $pager_total_items;
 	if($pager_total[0]>1){
-	  $output = '' . '<span class="page-count-elements">' . ($pager_page_array[0]*10 + 1) . '-' . ($pager_page_array[0]*10+$number) .'<span>' . ' of ' . $pager_total_items[0] .' Resumes';
+	  $output = '' . '<span class="page-count-elements">' . ($pager_page_array[0]*10 + 1) . '-' . ($pager_page_array[0]*10+$number) .'<span>' . ' of ' . $pager_total_items[0] .' Portfolios';
 	} else $output = '';
 	return $output;
 }
