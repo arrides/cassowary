@@ -126,6 +126,9 @@ function cassowary_main_form_alter(&$form, &$form_state, $form_id) {
   }
   if($form_id == 'article_node_form' || $form_id == 'blog_post_node_form' || $form_id == 'blurb_node_form' || $form_id == 'facebook_post_node_form' || $form_id == 'job_node_form' || $form_id == 'tweet_node_form') {
     drupal_add_js(drupal_get_path('module', 'cassowary_main') .'/js/cassowary_main_node.js', 'file');
+    unset($form['field_company_logo']);
+    unset($form['field_company_thumbalizr']);
+    unset($form['field_company_favicon']);
   }
   if($form_id == 'facebook_post_node_form' ) {
     $options = array(0 => t('Add Post'), 1 => t('Add Photo'));
@@ -166,6 +169,9 @@ function cassowary_main_form_alter(&$form, &$form_state, $form_id) {
   
   if($form_id == 'blurb_node_form') {
   	drupal_set_title('Blurb '. $form['title']['#default_value']);
+  	$form['title']['#placeholder'] = t('I.e. Your Book');
+  	$form['body']['und'][0]['value']['#placeholder'] = t('I.e. Something nice a famous person said about your book');
+  	$form['field_author']['und'][0]['value']['#placeholder'] = t('I.e. The name of someone famous');
     if(isset($form['#prefix'])) {
     	$form['#prefix'] = $form['#prefix'] . '<div class="form-inner">';
     	$form['#suffix'] = '</div>';
@@ -173,6 +179,8 @@ function cassowary_main_form_alter(&$form, &$form_state, $form_id) {
   }
 
   if($form_id == 'article_node_form') {
+  	drupal_add_js(drupal_get_path('module', 'cassowary_main') .'/js/cassowary_main_placeholder.js', 'file');
+  	$form['field_company_writer']['und'][0]['value']['#placeholder'] = t('E.g. Time Magazine');
   	drupal_set_title('Article '. $form['title']['#default_value']);
     if(isset($form['#prefix'])) {
     	$form['#prefix'] = $form['#prefix'] . '<div class="form-inner">';
@@ -180,7 +188,14 @@ function cassowary_main_form_alter(&$form, &$form_state, $form_id) {
     }
   }
   
+  if($form_id == 'blog_post_node_form') {
+  	drupal_add_js(drupal_get_path('module', 'cassowary_main') .'/js/cassowary_main_placeholder.js', 'file');
+  	$form['field_company_writer']['und'][0]['value']['#placeholder'] = t('E.g. Time Magazine');
+  }
+  
   if($form_id == 'facebook_post_node_form') {
+  	drupal_add_js(drupal_get_path('module', 'cassowary_main') .'/js/cassowary_main_placeholder.js', 'file');
+  	$form['field_company_writer']['und'][0]['value']['#placeholder'] = t('E.g. Time Magazine');
   	//drupal_set_title('Facebook Post '. $form['title']['#default_value']);
   	drupal_set_title('Facebook Post');
     if(isset($form['#prefix'])) {
@@ -190,13 +205,14 @@ function cassowary_main_form_alter(&$form, &$form_state, $form_id) {
   }
   
   if($form_id == 'tweet_node_form') {
+  	drupal_add_js(drupal_get_path('module', 'cassowary_main') .'/js/cassowary_main_placeholder.js', 'file');
+  	$form['field_company_writer']['und'][0]['value']['#placeholder'] = t('E.g. Time Magazine');
   	drupal_set_title('Tweet '. $form['title']['#default_value']);
     if(isset($form['#prefix'])) {
     	$form['#prefix'] = $form['#prefix'] . '<div class="form-inner">';
     	$form['#suffix'] = '</div>';
     }
-  }  
-  
+  }
 }
 
 /**
@@ -1223,19 +1239,24 @@ function cassowary_user_portfolio_messages($user_prof = NULL) {
     $fill .= 'Work ';
   }
   $procent =  round((100*$i) / 7);
-  //dsm($count);
 
   $content = '';
-  if($i == 0 || $first_login == 1){
-    $content = '<span class="status-portfolio"><span class="green">' . t('Welcome!') . '</span> ' .t('Complete your portfolio by adding your personal details and featured works.');
-  } else {
-    $content = '<span class="status-portfolio">'. t('Your portfolio is ') . '<span class="green">' . $procent . '% ' . t('complete!') . '</span>';
-    if ($i == 7){
-      $content = '<span class="status-portfolio">That is all right';
-    } else {
-      $content .= ' ' . t('Please add:') . ' ' . '<span class="green">' . $fill .'</span>';
-    }
-  }
+  
+  if(arg(2) == 'portfolio') {		
+  	$content = '<span class="status-portfolio"><span class="green">You are in Preview Mode</span> Click Edit to make changes to your portfolio.</span>';
+  } 
+  else {	
+	  if($i == 0 || $first_login == 1){
+	    $content = '<span class="status-portfolio"><span class="green">' . t('Welcome!') . '</span> ' .t('Complete your portfolio by adding your personal details and featured works.');
+	  } else {
+	    $content = '<span class="status-portfolio">'. t('Your portfolio is ') . '<span class="green">' . $procent . '% ' . t('complete!') . '</span>';
+	    if ($i == 7){
+	      $content = '<span class="status-portfolio"><span class="green">You are in Edit Mode.</span> Click Preview to view how employers see your portfolio.';
+	    } else {
+	      $content .= ' ' . t('Please add:') . ' ' . '<span class="green">' . $fill .'</span>';
+	    }
+	  }
+	}
   $content .= '</span>';
   return $content;
 }
@@ -1469,4 +1490,32 @@ function cassowary_posted_jobs_form_submit($form, &$form_state){
   		->execute(); 		
   	}
   }
+}
+
+function cassowary_main_node_presave($node) {
+	if ($node->type == 'article' || $node->type == 'blog_post' || $node->type == 'blurb' || $node->type == 'facebook_post' || $node->type == 'tweet') {
+		if(isset($node->field_company_link_node['und'][0]['url'])){
+		  $link_company = $node->field_company_link_node['und'][0]['url'];
+		  $link_company = str_replace ('http://', '', $link_company);
+		  $link_company = str_replace ('www.', '', $link_company);
+		  $last=isset($link_company[0])?$link_company[strlen($link_company)-1]:'';
+		  if($last == '/'){
+		  	
+		  } else {
+		  	$link_company .= '/';
+		  }
+		}
+		
+		$node->field_company_thumbalizr['und'][0]['value'] = 'http://api.thumbalizr.com/?url=http://www.' . $link_company . '&width=150';
+		$node->field_company_thumbalizr['und'][0]['format '] = NULL;
+		$node->field_company_thumbalizr['und'][0]['safe_value'] = 'http://api.thumbalizr.com/?url=http://www.' . $link_company . '&width=150';
+		
+		$node->field_company_favicon['und'][0]['value'] = 'http://www.google.com/s2/favicons?domain=' . $node->field_company_link_node['und'][0]['url'];
+		$node->field_company_favicon['und'][0]['format '] = NULL;
+		$node->field_company_favicon['und'][0]['safe_value'] = 'http://www.google.com/s2/favicons?domain=' . $node->field_company_link_node['und'][0]['url'];		
+	}
+}
+
+function cassowary_main_node_view($node, $view_mode, $langcode) {
+	
 }

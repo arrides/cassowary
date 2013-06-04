@@ -108,11 +108,17 @@ function cassowary_payment_init() {
  *
  */
 
-function cassowary_payment_access_proccess($transaction) {
+function cassowary_payment_access_proccess($transaction = 0) {
   global $user;
-  if ($user->uid == $transaction->sender && user_access('adaptive payment')) {
+  if ($transaction) {
+    if ($user->uid == $transaction->sender && user_access('adaptive payment')) {
+      return TRUE;
+    }
+  }
+  elseif (user_access('adaptive payment')) {
     return TRUE;
   }
+  
   return FALSE;
 }
 
@@ -211,7 +217,6 @@ function cassowary_payment_menu() {
   		'title' => 'Free transition',
   		'page callback' => 'cassowary_payment_free_transition',
   		'page arguments' => array(1,2),
-  		'access arguments' => array(1),
   		'access callback' => 'cassowary_payment_access_proccess',
   );    
   $items['admin/config/cassowary/adaptive_payment'] = array(
@@ -469,7 +474,7 @@ function cassowary_payment_account($plan) {
     // proccess w/o payment
 	// NEED TO ADD hook_menu item
 	$days = round(($plan->field_price_plan['und'][0]['value'] + $amount)*30/$plan->field_price_plan['und'][0]['value'], 0);
-    drupal_goto('payment-account-free/' . $user->uid . '/' . $plan->nid . '/' . $days);
+    drupal_goto('payment-account-free/' . $user->uid . '/' . strtolower($plan->title));
   }
   
   $currencyCode = 'USD'; // now only USD
@@ -554,13 +559,20 @@ function cassowary_payment_account($plan) {
  *   
  */ 
 function  cassowary_payment_free_transition($account, $plan)  {
-	$account_user = user_load($account);
-	$plan_user = node_load($plan);
 
-	$amount = _cassowary_payment_account_amount($account_user, $plan_user);
-	$day = $amount*(-1)*30/$plan_user->field_price_plan['und'][0]['value'];
-	cassowary_payment_billing_roles($account, $plan, $day);	
-	return 'You have new plan on ' . $day;		
+  if((time() - $account->field_last_updated['und'][0]['value'])/(24*3600) < 1) {
+    drupal_set_message(t('Sorry, you can do billing operations with your account only once a day. Please, try your attempt later.'), 'error');
+    drupal_goto('billing-plans');
+  }
+
+	$amount = _cassowary_payment_account_amount($account, $plan);
+	if ($amount > 0) {
+	  drupal_goto('billing-plans');
+	}
+	$days = round(($plan->field_price_plan['und'][0]['value'] - $amount)*30/$plan->field_price_plan['und'][0]['value'], 0);
+	
+	cassowary_payment_billing_roles($account, $plan, $days);	
+	return t('You have new plan on @days days', array('@days' => $days));
 } 
   
 /**
@@ -1742,17 +1754,20 @@ function cassowary_payment_billing_roles($account, $plan, $day = 30) {
 	  rules_invoke_component('rules_add_new_expire_role', $account, array($new_role));
            
       // add new role, delete old
+	  
       $query = db_delete('role_expire')
         ->condition('uid', $account->uid)
         ->execute();
 		$today = date('d m Y', time());		
-        $new_time = strtotime( "+". $day ." day", strtotime($today));
+        //$new_time = strtotime( "+". $day ." day", strtotime($today));
+		$new_time = time() + $day * 24 * 3600;
       $query = db_insert('role_expire')
       ->fields(array('expiry_timestamp' => $new_time,
           'uid' => $account->uid,
           'rid' => $new_role,
           ))
       ->execute();
+	  
 	  
 	  // update field_last_updated
 		$account->field_last_updated['und'][0]['value'] = time();
